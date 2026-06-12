@@ -10,9 +10,17 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@discordjs/voice": "^0.18.0",
+    "axios": "^1.10.0",
     "cohere-ai": "^7.17.1",
     "discord.js": "^14.20.0",
     "dotenv": "^16.5.0",
-    "openai": "^5.5.1"
+    "franc": "^6.2.0",
+    "jimp": "^1.6.0",
+    "node-fetch": "^2.7.0",
+    "openai": "^5.5.1",
+    "play-dl": "^1.9.7",
+    "tesseract.js": "^6.0.1",
+    "wikijs": "^6.4.1"
   }
 }
