@@ -2,8 +2,8 @@ const { franc } = require('franc');
 const { detectChinese } = require('../utils/helpers');
 const { getSystemPromptByLang } = require('../data/persona');
 const { askGroq } = require('../services/groqService');
-const wikiCommand = require('../commands/wiki');
 const logger = require('../utils/logger');
+const { getMessage } = require('../utils/i18n');
 
 const conversationHistory = new Map();
 const MAX_HISTORY_LENGTH = 50; // 防範 Memory Leak
@@ -16,10 +16,15 @@ module.exports = {
     const userPrompt = message.content.trim();
     if (userPrompt.includes(':')) return;
 
+    // Detect language early
+    const langCode = detectChinese(userPrompt) ? 'cmn' : franc(userPrompt);
+
     // Handle Commands
     if (userPrompt.startsWith('/查詢wiki ')) {
       const q = userPrompt.slice(8).trim();
-      return wikiCommand.execute(message, q);
+      const command = message.client.commands.get('wiki');
+      if (command) return command.executeText(message, q, langCode);
+      return;
     }
 
     // Handle Chat
@@ -37,7 +42,6 @@ module.exports = {
       history.splice(0, history.length - MAX_HISTORY_LENGTH);
     }
 
-    const langCode = detectChinese(userPrompt) ? 'cmn' : franc(userPrompt);
     const systemPrompt = getSystemPromptByLang(langCode);
 
     try {
@@ -51,7 +55,7 @@ module.exports = {
       logger.error('Error handling message:', error.message);
       // Optional fallback message handled gracefully
       try {
-         await message.reply('抱歉啦，我的大腦剛剛短路了一下，請再說一次！');
+         await message.reply(getMessage(langCode, 'error'));
       } catch(e) {}
     }
   },

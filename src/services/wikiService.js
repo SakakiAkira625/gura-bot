@@ -8,7 +8,7 @@ async function fetchWikiSummary(query, lang = 'en') {
     return summary.slice(0, 1000); // 截斷以避免過長
   } catch (error) {
     logger.error(`Wiki Search Error [${query}]:`, error.message);
-    return '找不到資料呢…你是故意考我嗎？';
+    return null;
   }
 }
 

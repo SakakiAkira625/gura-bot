@@ -1,4 +1,5 @@
 const { getNowTimeTW } = require('../utils/helpers');
+const { getSystemLanguageInstruction } = require('../utils/i18n');
 
 const guraPersona = {
   role: 'system',
@@ -69,20 +70,15 @@ const guraPersona = {
 };
 
 function getSystemPromptByLang(langCode) {
-  const langMap = {
-    cmn: '請用中文回答,保持Gura的語氣。',
-    eng: 'Please respond in English, keeping Gura style.',
-    jpn: '日本語で回答してください。Guraの口調で。',
-  };
-
   const nowTime = getNowTimeTW();
+  const languageInstruction = getSystemLanguageInstruction(langCode);
 
   return {
     role: 'system',
     content: `
 現在時間：${nowTime}
 
-${langMap[langCode] || langMap.cmn}
+${languageInstruction}
 
 ${guraPersona.content}
 

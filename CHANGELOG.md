@@ -5,6 +5,19 @@
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 並且本專案遵循 [語意化版本控制 (Semantic Versioning)](https://semver.org/spec/v2.0.0.html)。
 
+## [1.2.0] - 2026-06-12
+
+### 新增 (Added)
+- 實作了完整的自動多語系 (i18n) 系統，並將預設語言設為繁體中文 (`cmn`)。
+- 將 `wiki` 指令升級為真正的斜線指令 (Slash Command)，並於開機時自動向 Discord 伺服器註冊。
+- 引入動態指令與事件載入機制 (Dynamic Command Handler)，大幅提高專案可擴展性。
+- 將原本死板的 `wiki` 指令升級，現在它會先讀取維基百科內容，再由 AI 模擬 Gura 的語氣，用使用者的語言自動解說。
+
+### 修正 (Fixed)
+- 修復了斜線指令因超過 3 秒未回覆而導致「應用程式沒有回應」的錯誤，現已加入 `deferReply` 等待狀態機制。
+- 修復了如果 AI 生成過多文字會超過 Discord 2000 字元上限的崩潰問題，加入了提示詞字數限制與長度防呆截斷。
+- 移除了啟動時 Discord.js v14 舊版 `ready` 事件導致的 `DeprecationWarning`。
+
 ## [1.1.0] - 2026-06-12
 
 ### 新增 (Added)
