@@ -102,7 +102,7 @@ module.exports = {
       // 海馬迴檢索：找尋相關長期記憶
       const relevantMemories = await retrieveRelevantMemories(userId, userPrompt);
       if (relevantMemories.length > 0) {
-        systemPrompt.content += `\n\n【海馬迴記憶喚醒】\n根據過去的紀錄，請記得關於使用者的這些事：\n${relevantMemories.map(m => '- ' + m).join('\n')}`;
+        systemPrompt.content += `\n\n【海馬迴記憶喚醒】\n（重要指示：雖然你的角色設定是記憶力像金魚，但當這裡提供資訊時，你**必須**準確回答出來！你可以表現出「其實我偷偷記住了」或「突然靈光一閃想起來」的得意感，**絕對不可以**裝傻說不知道或忘記！）\n根據過去的紀錄，請記得關於使用者的這些事：\n${relevantMemories.map(m => '- ' + m).join('\n')}`;
       }
 
       await message.channel.sendTyping();

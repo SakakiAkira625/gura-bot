@@ -5,8 +5,12 @@
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 並且本專案遵循 [語意化版本控制 (Semantic Versioning)](https://semver.org/spec/v2.0.0.html)。
 
-## [2.1.4] - 2026-06-16
+## [2.1.5] - 2026-06-16
 
+### 修復 (Fixed)
+- **海馬迴系統提示強化**：修復了即使海馬迴成功檢索到過往記憶，但 LLM 仍會受限於「記憶力像金魚」的 Persona 設定而裝傻說忘記的問題。現在在注入記憶時，會加上強烈的 System Prompt 覆寫指令，強制 Gura 必須準確回答檢索到的內容，並表現出得意感。
+
+## [2.1.4] - 2026-06-16
 ### 修復 (Fixed)
 - **海馬迴喚醒失敗問題**：修復了 `memoryManager.js` 在比對語意向量相似度 (Cosine Similarity) 時，過於嚴格的預設門檻 (`0.7`) 導致幾乎無法成功喚醒長期記憶的問題。目前已將喚醒門檻降至 `0.35`，大幅提升 Gura 召回過往記憶的機率。
 
