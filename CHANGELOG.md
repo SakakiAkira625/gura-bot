@@ -5,6 +5,11 @@
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 並且本專案遵循 [語意化版本控制 (Semantic Versioning)](https://semver.org/spec/v2.0.0.html)。
 
+## [2.1.8] - 2026-06-16
+
+### 新增 (Added)
+- **運行時模型熔斷降級機制 (Runtime Circuit Breaker)**：在 `modelManager.js` 與 `nvidiaService.js` 中加入了動態失敗計數機制。如果當前首選模型在運作期間連續失敗或超時 3 次，系統會將該模型降級並移至 `activeModels` 備用清單的最後面。這能有效避免因為某個模型在運行中途突然掛掉，導致每一次使用者對話都會經歷漫長的 Fallback 等待時間。
+
 ## [2.1.7] - 2026-06-16
 
 ### 修復 (Fixed)

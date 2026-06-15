@@ -81,11 +81,18 @@ async function askNvidiaWithFallback(prompt, history, systemPrompt, intent = 'CH
       }
 
       const response = await callModelWithTimeout(prompt, history, systemPrompt, currentModel, timeoutMs);
+      
+      // 成功執行，回報成功以重置失敗計數
+      modelManager.reportSuccess(currentModel);
+      
       return response;
 
     } catch (error) {
       lastError = error;
       logger.error(`[NVIDIA API Error] 模型 ${currentModel} 執行失敗或超時: ${error.message}`);
+      
+      // 紀錄失敗，若連續失敗會觸發熔斷降級
+      modelManager.reportFailure(intent, currentModel);
       
       // 如果遇到 429 Too Many Requests，直接跳出迴圈避免繼續浪費額度
       if (error.status === 429) {

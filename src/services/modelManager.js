@@ -38,6 +38,9 @@ let activeModels = {
   VISION: []
 };
 
+// 記錄模型在執行期間連續失敗的次數 (Circuit Breaker)
+const modelFailures = {};
+
 /**
  * 極輕量的微型測試 (1 Token)，用來檢查模型是否 404 或死機
  * @param {string} modelName 
@@ -128,7 +131,38 @@ function getModelsForIntent(intent) {
   return PREFERRED_MODELS[intent] || PREFERRED_MODELS['CHAT'];
 }
 
+/**
+ * 回報模型執行成功，清空失敗計數
+ */
+function reportSuccess(modelName) {
+  modelFailures[modelName] = 0;
+}
+
+/**
+ * 回報模型執行失敗，連續失敗 3 次則將其降級至該意圖的清單尾端
+ */
+function reportFailure(intent, modelName) {
+  if (!modelFailures[modelName]) modelFailures[modelName] = 0;
+  modelFailures[modelName]++;
+
+  if (modelFailures[modelName] >= 3) {
+    if (activeModels[intent]) {
+      const idx = activeModels[intent].indexOf(modelName);
+      if (idx !== -1) {
+        // 移出當前位置並加到最後面
+        activeModels[intent].splice(idx, 1);
+        activeModels[intent].push(modelName);
+        logger.warn(`[Model Manager] 模型 ${modelName} 連續失敗 3 次，已觸發熔斷降級機制，移至備用清單尾端。`);
+      }
+    }
+    // 降級後重置計數，避免無止盡一直移
+    modelFailures[modelName] = 0;
+  }
+}
+
 module.exports = {
   syncModels,
-  getModelsForIntent
+  getModelsForIntent,
+  reportSuccess,
+  reportFailure
 };
