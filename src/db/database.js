@@ -45,6 +45,36 @@ async function getDb() {
       )
     `);
 
+    try {
+      await pool.query('ALTER TABLE history ADD COLUMN is_summarized BOOLEAN DEFAULT 0');
+      logger.info('成功為 history 表新增 is_summarized 欄位');
+    } catch (err) {
+      // 錯誤碼 1060 代表欄位已經存在，直接忽略
+      if (err.code !== 'ER_DUP_FIELDNAME') {
+        logger.warn('為 history 新增 is_summarized 欄位時發生錯誤', err);
+      }
+    }
+
+    // 建立長期記憶表 (海馬迴)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS long_term_memories (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id VARCHAR(255),
+        summary TEXT,
+        embedding JSON,
+        timestamp BIGINT
+      )
+    `);
+
+    // 建立機器人狀態表 (作夢系統)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS bot_state (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        current_dream TEXT,
+        last_dream_at BIGINT
+      )
+    `);
+
     // 建立伺服器設定表 (未來備用)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS guild_settings (

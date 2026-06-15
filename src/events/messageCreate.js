@@ -203,7 +203,7 @@ module.exports = {
       summarizeAndStoreMemory(userId, channelId).catch(e => logger.error(`[海馬迴背景處理失敗] ${e.message}`));
 
     } catch (error) {
-      logger.error('Error handling message:', error.message);
+      logger.error('Error handling message:', error);
       try {
         const errorReply = getPersonaErrorReply(langCode, error.status);
         await message.reply(errorReply);

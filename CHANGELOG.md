@@ -5,8 +5,12 @@
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 並且本專案遵循 [語意化版本控制 (Semantic Versioning)](https://semver.org/spec/v2.0.0.html)。
 
-## [2.1.3] - 2026-06-15
+## [2.1.4] - 2026-06-16
 
+### 修復 (Fixed)
+- **海馬迴喚醒失敗問題**：修復了 `memoryManager.js` 在比對語意向量相似度 (Cosine Similarity) 時，過於嚴格的預設門檻 (`0.7`) 導致幾乎無法成功喚醒長期記憶的問題。目前已將喚醒門檻降至 `0.35`，大幅提升 Gura 召回過往記憶的機率。
+
+## [2.1.3] - 2026-06-15
 ### 修復 (Fixed)
 - **記憶混淆防呆機制**：修復了 `memoryManager.js` 在提取多人頻道對話上下文時，可能將其他人的特徵誤認並總結給當前使用者的問題。現在壓縮時會明確從對話中解析出目標發言者的名字（例如 `[the_reaper_of_soul]`），並在 Prompt 中嚴格指定 LLM「絕對不能」混淆其他人的特徵。
 
