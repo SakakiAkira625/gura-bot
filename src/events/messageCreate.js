@@ -60,8 +60,11 @@ module.exports = {
 
     // 🌟 功能二：對話記憶永久化 (Persistent Memory)
     try {
+      // 加入使用者名稱讓 Gura 可以識別是誰在說話
+      const userPromptWithName = `[${message.author.username}]: ${userPrompt}`;
+
       // 儲存使用者的對話
-      await db.run('INSERT INTO history (channel_id, role, content, timestamp) VALUES (?, ?, ?, ?)', [channelId, 'user', userPrompt, now]);
+      await db.run('INSERT INTO history (channel_id, role, content, timestamp) VALUES (?, ?, ?, ?)', [channelId, 'user', userPromptWithName, now]);
 
       // 讀取最近的 10 筆對話紀錄
       const rawHistory = await db.all('SELECT role, content FROM history WHERE channel_id = ? ORDER BY timestamp DESC LIMIT 10', [channelId]);
@@ -70,7 +73,7 @@ module.exports = {
       const systemPrompt = getSystemPromptByLang(langCode);
 
       await message.channel.sendTyping();
-      const reply = await askGroq(userPrompt, history, systemPrompt);
+      const reply = await askGroq(userPromptWithName, history, systemPrompt);
 
       // 儲存 Gura 的回覆
       await db.run('INSERT INTO history (channel_id, role, content, timestamp) VALUES (?, ?, ?, ?)', [channelId, 'assistant', reply, Date.now()]);
