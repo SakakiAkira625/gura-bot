@@ -5,9 +5,17 @@
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 並且本專案遵循 [語意化版本控制 (Semantic Versioning)](https://semver.org/spec/v2.0.0.html)。
 
-## [1.5.0] - 2026-06-15
+## [2.0.0] - 2026-06-15
+
+### 新增 (Added)
+- **多模型動態架構與意圖引擎**：導入 `intentEngine.js`，自動分類使用者訊息 (CHAT, CODE, WIKI_SEARCH)，並分配至 NVIDIA API 上對應的最佳模型。
+- **動態模型管理與 Fallback 系統**：新增 `modelManager.js` 於啟動時自動同步 NVIDIA NIM 模型清單並執行體檢 (Health Check)，遇到 404 或死機時會自動切換降級 (Auto-Fallback) 保護機制。
+- **Slash Command 動態權限系統 (Plan B)**：導入資料庫 `command_channels` 管理指令白名單，並加入管理員專屬的 `/allow_channel` 進行熱更新設定。
 
 ### 變更 (Changed)
+- 全面廢除 Groq 服務，底層生成模型全面改為對接 NVIDIA API。
+
+## [1.5.0] - 2026-06-15
 - **架構升級**：將底層資料庫從 SQLite 遷移至高效能的 MySQL，以支援更好的併發與多執行緒連線效能。
 - 修改了 `database.js` 底層連線池機制，透過 `mysql2/promise` 建立連線，並兼容舊有的非同步執行語法。
 - 新增環境變數設定 (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`)。
