@@ -4,6 +4,8 @@ const { getSystemPromptByLang, getPersonaErrorReply } = require('../data/persona
 const { askNvidiaWithFallback } = require('../services/nvidiaService');
 const { classifyIntent, extractWikiKeyword } = require('../services/intentEngine');
 const { fetchWikiSummary } = require('../services/wikiService');
+const { retrieveRelevantMemories, summarizeAndStoreMemory } = require('../services/memoryManager');
+const { downloadTextFile } = require('../utils/fileHelper');
 const logger = require('../utils/logger');
 const { getMessage } = require('../utils/i18n');
 const { getDb } = require('../db/database');
@@ -14,7 +16,9 @@ module.exports = {
     if (message.author.bot) return;
 
     const userPrompt = message.content.trim();
-    if (userPrompt.includes(':')) return;
+    
+    // 使用 Regex 檢查第一個字元，如果以 !、.、/ 或 // 開頭，則機器人無視該訊息
+    if (/^[!\.\/]/.test(userPrompt) || userPrompt.startsWith('//')) return;
 
     // Detect language early
     const langCode = detectChinese(userPrompt) ? 'cmn' : franc(userPrompt);
@@ -68,10 +72,93 @@ module.exports = {
 
       const systemPrompt = getSystemPromptByLang(langCode);
 
+      // 隨機抽取伺服器表符
+      if (message.guild) {
+        const emojis = message.guild.emojis.cache;
+        if (emojis.size > 0) {
+          const emojiArray = Array.from(emojis.values());
+          const shuffled = emojiArray.sort(() => 0.5 - Math.random());
+          const selectedEmojis = shuffled.slice(0, 15).map(e => e.toString());
+          systemPrompt.content += `\n\n【伺服器專屬表符】\n你可以使用這些表情符號來增加互動趣味，請自然地穿插在回覆中：\n${selectedEmojis.join(' ')}`;
+        }
+      }
+
+      // 🌟 夢境觸發系統：檢查是否有人說早安，且昨晚有作夢
+      if (userPrompt.match(/早安|morning|早阿|早上好/i)) {
+        const state = await db.get('SELECT current_dream FROM bot_state WHERE id = 1');
+        if (state && state.current_dream) {
+          await message.channel.sendTyping();
+          logger.info(`[Dream Engine] 觸發晨間夢境分享給 ${message.author.username}`);
+          
+          const reply = state.current_dream;
+          await db.run('UPDATE bot_state SET current_dream = NULL WHERE id = 1'); // 清空夢境，避免重複分享
+          
+          await db.run('INSERT INTO history (user_id, channel_id, role, content, timestamp) VALUES (?, ?, ?, ?, ?)', [message.client.user.id, channelId, 'assistant', reply, Date.now()]);
+          await message.reply(reply);
+          return; // 結束流程，不繼續進入普通 LLM 回覆
+        }
+      }
+
+      // 海馬迴檢索：找尋相關長期記憶
+      const relevantMemories = await retrieveRelevantMemories(userId, userPrompt);
+      if (relevantMemories.length > 0) {
+        systemPrompt.content += `\n\n【海馬迴記憶喚醒】\n根據過去的紀錄，請記得關於使用者的這些事：\n${relevantMemories.map(m => '- ' + m).join('\n')}`;
+      }
+
       await message.channel.sendTyping();
       
       const reqStartTime = Date.now();
-      const intent = await classifyIntent(userPrompt);
+      
+      // 處理附件 (檔案與圖片)
+      let finalUserPrompt = userPromptWithName;
+      let finalPromptPayload = null; // 放 OpenAI Vision Array
+      let forceIntent = null;
+
+      if (message.attachments.size > 0) {
+        const textAttachments = [];
+        const imageAttachments = [];
+
+        message.attachments.forEach(att => {
+          // 將所有非圖片的附件都視為文字檔進行下載解析
+          if (att.contentType && att.contentType.startsWith('image/')) {
+            imageAttachments.push(att);
+          } else {
+            textAttachments.push(att);
+          }
+        });
+
+        logger.info(`[Attachment Debug] textAttachments: ${textAttachments.length}, imageAttachments: ${imageAttachments.length}`);
+
+        for (const att of textAttachments) {
+          logger.info(`[Attachment Debug] Downloading text file: ${att.url}`);
+          const content = await downloadTextFile(att.url);
+          if (content) {
+            logger.info(`[Attachment Debug] Download successful, content length: ${content.length}`);
+            finalUserPrompt += `\n\n[使用者上傳了檔案 ${att.name}，內容如下]\n${content}`;
+          } else {
+            logger.warn(`[Attachment Debug] Content is empty or failed to download.`);
+          }
+        }
+
+        if (imageAttachments.length > 0) {
+          forceIntent = 'VISION';
+          finalPromptPayload = [
+            { type: 'text', text: finalUserPrompt }
+          ];
+          for (const att of imageAttachments) {
+            finalPromptPayload.push({
+              type: 'image_url',
+              image_url: { url: att.url }
+            });
+          }
+        }
+      }
+
+      if (!finalPromptPayload) {
+        finalPromptPayload = finalUserPrompt;
+      }
+
+      const intent = forceIntent || await classifyIntent(userPrompt);
       logger.info(`[Intent Engine] User: ${message.author.username} | Intent: ${intent}`);
 
       let reply = '';
@@ -93,22 +180,28 @@ module.exports = {
             content: `${systemPrompt.content}\n\n【系統提示】找不到相關資料，請用Gura的語氣向使用者裝傻或抱怨找不到。`
           };
         }
-        reply = await askNvidiaWithFallback(userPromptWithName, history, wikiContextPrompt, 'CHAT');
+        reply = await askNvidiaWithFallback(finalPromptPayload, history, wikiContextPrompt, 'CHAT');
       } else if (intent === 'CODE') {
-        reply = await askNvidiaWithFallback(userPromptWithName, history, systemPrompt, 'CODE');
+        reply = await askNvidiaWithFallback(finalPromptPayload, history, systemPrompt, 'CODE');
+      } else if (intent === 'VISION') {
+        reply = await askNvidiaWithFallback(finalPromptPayload, history, systemPrompt, 'VISION');
       } else {
-        reply = await askNvidiaWithFallback(userPromptWithName, history, systemPrompt, 'CHAT');
+        reply = await askNvidiaWithFallback(finalPromptPayload, history, systemPrompt, 'CHAT');
       }
       
+      // 儲存 Gura 的回覆 (機器人本身的 user_id)，注意不要把耗時字串存進資料庫，否則模型會學習並自己產生
+      await db.run('INSERT INTO history (user_id, channel_id, role, content, timestamp) VALUES (?, ?, ?, ?, ?)', [message.client.user.id, channelId, 'assistant', reply, Date.now()]);
+
       const reqEndTime = Date.now();
       const timeTaken = ((reqEndTime - reqStartTime) / 1000).toFixed(1);
-      reply += `\n\n-# 回覆耗時: ${timeTaken} 秒`;
-
-      // 儲存 Gura 的回覆 (機器人本身的 user_id)
-      await db.run('INSERT INTO history (user_id, channel_id, role, content, timestamp) VALUES (?, ?, ?, ?, ?)', [message.client.user.id, channelId, 'assistant', reply, Date.now()]);
+      const finalReply = reply + `\n\n-# 回覆耗時: ${timeTaken} 秒`;
       
-      logger.info(`[AI Response to ${message.author.username}]: ${reply}`);
-      await message.reply(reply);
+      logger.info(`[AI Response to ${message.author.username}]: ${finalReply}`);
+      await message.reply(finalReply);
+
+      // 對話結束後，背景非同步執行海馬迴總結與沉澱
+      summarizeAndStoreMemory(userId, channelId).catch(e => logger.error(`[海馬迴背景處理失敗] ${e.message}`));
+
     } catch (error) {
       logger.error('Error handling message:', error.message);
       try {

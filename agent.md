@@ -26,7 +26,13 @@
 - 必須遵循 "Keep a Changelog" 的格式。
 - **絕對禁止**只改版號不寫日誌，所有的錯誤修復無論大小都需要開一個版本。
 
-### 4. Branching Strategy & Git Workflow
+### 4. Continuous Versioning & Committing (持續版本與提交規範)
+**強制作業流程**：每次完成功能開發或 Bug 修復後，**必須**立即執行以下步驟：
+1. **滾動版本號 (Bump Version)**：更新 `package.json` 的版本號。
+2. **本地版本紀錄 (Update Changelog)**：將這次的更動詳細記錄到 `CHANGELOG.md` 的最新版本標題下。
+3. **本地 Commit 紀錄 (Local Git Commit)**：使用 `git add` 與 `git commit` 將更動紀錄到本地端，並在 Commit 訊息中清楚描述變更內容。
+
+### 5. Branching Strategy & Git Workflow
 - **clean-repo (`main` / `master`)**: 穩定的生產分支 (Production)。**只接受 PR 合併，原則上禁止未經確認直接 Push 破壞性更新。**
 - **feat/ 或 fix/**: 開發分支。完成後發 PR 到穩定分支。所有工作請務必要開 PR，然後 commit。使用完 PR 之後，請刪除本地分支以利後續管理。
 - **實驗性分支**: 命名為 `exp/<feature>`，可不遵守上述嚴格版本規則，但在合併回穩定分支前必須標準化。
