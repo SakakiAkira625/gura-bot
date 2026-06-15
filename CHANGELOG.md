@@ -5,6 +5,13 @@
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 並且本專案遵循 [語意化版本控制 (Semantic Versioning)](https://semver.org/spec/v2.0.0.html)。
 
+## [1.3.0] - 2026-06-15
+
+### 新增 (Added)
+- 導入完整的日誌追蹤系統，將原本的 `console.log` 替換為 `winston` 框架。
+- 實作日誌檔案輸出與自動輪轉 (`winston-daily-rotate-file`)，日誌檔會被妥善保存在 `logs/` 資料夾並設定 14 天的保留上限。
+- 終端機輸出現在會帶有易於辨識的顏色與一致化的時間戳記。
+
 ## [1.2.0] - 2026-06-12
 
 ### 新增 (Added)
