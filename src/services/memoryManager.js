@@ -89,11 +89,17 @@ async function summarizeAndStoreMemory(userId, channelId) {
 
     logger.info(`[海馬迴] 正在為使用者 ${userId} 壓縮 ${unsummarized.length} 筆對話記憶...`);
 
+    // 嘗試從未壓縮的紀錄中提取發言者名稱 (因為格式為 [Username]: xxx)
+    const userMessage = unsummarized.find(r => r.role === 'user');
+    const nameMatch = userMessage ? userMessage.content.match(/^\[(.*?)\]:/) : null;
+    const targetUsername = nameMatch ? nameMatch[1] : '該名使用者';
+
     const systemPrompt = {
       role: 'system',
-      content: `你是一個專業的記憶整理員。請從以下的對話紀錄中，提取出「使用者」的關鍵特徵，例如：喜好、習慣、最近發生的重要事件或狀態。
-如果對話中包含這類資訊，請用簡短、客觀的條列式文字總結（例如：「使用者喜歡吃披薩」、「使用者正在準備期末考」）。
-如果對話皆為無意義的閒聊，沒有任何值得記憶的資訊，請完全且僅僅輸出「無特殊記憶點」五個字，不要包含任何標點符號或其他說明。`
+      content: `你是一個專業的記憶整理員。請從以下的對話紀錄中，專注提取出特定使用者「${targetUsername}」的關鍵特徵，例如：喜好、習慣、最近發生的重要事件或狀態。
+如果對話中包含這類資訊，請用簡短、客觀的條列式文字總結（例如：「${targetUsername} 喜歡吃披薩」、「${targetUsername} 正在準備期末考」）。
+請「絕對不要」把對話中其他人的特徵混淆進來。
+如果這段對話中，沒有任何關於「${targetUsername}」值得記憶的資訊，請完全且僅僅輸出「無特殊記憶點」五個字，不要包含任何標點符號或其他說明。`
     };
 
     const summary = await askNvidiaWithFallback(
