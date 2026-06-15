@@ -5,6 +5,11 @@
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 並且本專案遵循 [語意化版本控制 (Semantic Versioning)](https://semver.org/spec/v2.0.0.html)。
 
+## [2.0.1] - 2026-06-15
+
+### 修正 (Fixed)
+- 修復 `intentEngine.js` 判定問題：由於小模型 (8B) 容易將口語化的程式請求（如「妳有辦法寫個簡單的...」）誤判為一般聊天 `CHAT`，現已在 System Prompt 中加入 Few-Shot 範例，強迫將此類意圖正確歸類為 `CODE` 模式。
+
 ## [2.0.0] - 2026-06-15
 
 ### 新增 (Added)
