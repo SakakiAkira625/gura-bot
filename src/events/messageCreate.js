@@ -78,6 +78,7 @@ module.exports = {
       // 儲存 Gura 的回覆 (機器人本身的 user_id)
       await db.run('INSERT INTO history (user_id, channel_id, role, content, timestamp) VALUES (?, ?, ?, ?, ?)', [message.client.user.id, channelId, 'assistant', reply, Date.now()]);
       
+      logger.info(`[AI Response to ${message.author.username}]: ${reply}`);
       await message.reply(reply);
     } catch (error) {
       logger.error('Error handling message:', error.message);
