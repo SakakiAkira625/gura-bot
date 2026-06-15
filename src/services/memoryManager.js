@@ -28,7 +28,7 @@ function computeCosineSimilarity(vecA, vecB) {
  * @param {number} threshold 相似度門檻
  * @returns {Promise<Array>} 相關的記憶字串陣列
  */
-async function retrieveRelevantMemories(userId, queryText, topK = 3, threshold = 0.7) {
+async function retrieveRelevantMemories(userId, queryText, topK = 3, threshold = 0.35) {
   try {
     const queryEmbedding = await getEmbedding(queryText);
     const pool = await db.getDb();
