@@ -1,56 +1,80 @@
-const sqlite3 = require('sqlite3').verbose();
-const { open } = require('sqlite');
-const path = require('path');
+const mysql = require('mysql2/promise');
 const logger = require('../utils/logger');
+const { DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME } = require('../config/env');
 
-let dbPromise = null;
+let poolPromise = null;
 
 async function getDb() {
-  if (dbPromise) return dbPromise;
+  if (poolPromise) return poolPromise;
 
-  dbPromise = open({
-    filename: path.join(__dirname, '../../data.sqlite'),
-    driver: sqlite3.Database
-  }).then(async (db) => {
-    logger.info('成功連接到 SQLite 資料庫 (data.sqlite)');
+  try {
+    const pool = mysql.createPool({
+      host: DB_HOST,
+      port: DB_PORT,
+      user: DB_USER,
+      password: DB_PASSWORD,
+      database: DB_NAME,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0
+    });
+
+    // Test connection
+    await pool.query('SELECT 1');
+    logger.info('成功連接到 MySQL 資料庫');
 
     // 建立使用者好感度與等級表
-    await db.exec(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        xp INTEGER DEFAULT 0,
-        level INTEGER DEFAULT 1,
-        last_message_at INTEGER DEFAULT 0
+        id VARCHAR(255) PRIMARY KEY,
+        xp INT DEFAULT 0,
+        level INT DEFAULT 1,
+        last_message_at BIGINT DEFAULT 0
       )
     `);
 
     // 建立對話紀錄歷史表
-    await db.exec(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id TEXT,
-        channel_id TEXT,
-        role TEXT,
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id VARCHAR(255),
+        channel_id VARCHAR(255),
+        role VARCHAR(50),
         content TEXT,
-        timestamp INTEGER
+        timestamp BIGINT
       )
     `);
 
     // 建立伺服器設定表 (未來備用)
-    await db.exec(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS guild_settings (
-        guild_id TEXT PRIMARY KEY,
-        default_lang TEXT DEFAULT 'cmn'
+        guild_id VARCHAR(255) PRIMARY KEY,
+        default_lang VARCHAR(50) DEFAULT 'cmn'
       )
     `);
 
-    return db;
-  }).catch((err) => {
-    logger.error('資料庫初始化失敗', err);
-    throw err;
-  });
+    // 封裝層 (Wrapper): 讓 mysql2 的語法相容原本 sqlite 的語法，減少商業邏輯的改動
+    pool.run = async (sql, params = []) => {
+      const [result] = await pool.execute(sql, params);
+      return result;
+    };
+    
+    pool.get = async (sql, params = []) => {
+      const [rows] = await pool.execute(sql, params);
+      return rows[0] || null;
+    };
+    
+    pool.all = async (sql, params = []) => {
+      const [rows] = await pool.execute(sql, params);
+      return rows;
+    };
 
-  return dbPromise;
+    poolPromise = pool;
+    return poolPromise;
+  } catch (err) {
+    logger.error('MySQL 資料庫初始化失敗', err);
+    throw err;
+  }
 }
 
 module.exports = {
