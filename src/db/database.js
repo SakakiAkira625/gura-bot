@@ -28,6 +28,7 @@ async function getDb() {
     await db.exec(`
       CREATE TABLE IF NOT EXISTS history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT,
         channel_id TEXT,
         role TEXT,
         content TEXT,

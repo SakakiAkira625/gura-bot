@@ -64,7 +64,7 @@ module.exports = {
       const userPromptWithName = `[${message.author.username}]: ${userPrompt}`;
 
       // 儲存使用者的對話
-      await db.run('INSERT INTO history (channel_id, role, content, timestamp) VALUES (?, ?, ?, ?)', [channelId, 'user', userPromptWithName, now]);
+      await db.run('INSERT INTO history (user_id, channel_id, role, content, timestamp) VALUES (?, ?, ?, ?, ?)', [userId, channelId, 'user', userPromptWithName, now]);
 
       // 讀取最近的 10 筆對話紀錄
       const rawHistory = await db.all('SELECT role, content FROM history WHERE channel_id = ? ORDER BY timestamp DESC LIMIT 10', [channelId]);
@@ -75,8 +75,8 @@ module.exports = {
       await message.channel.sendTyping();
       const reply = await askGroq(userPromptWithName, history, systemPrompt);
 
-      // 儲存 Gura 的回覆
-      await db.run('INSERT INTO history (channel_id, role, content, timestamp) VALUES (?, ?, ?, ?)', [channelId, 'assistant', reply, Date.now()]);
+      // 儲存 Gura 的回覆 (機器人本身的 user_id)
+      await db.run('INSERT INTO history (user_id, channel_id, role, content, timestamp) VALUES (?, ?, ?, ?, ?)', [message.client.user.id, channelId, 'assistant', reply, Date.now()]);
       
       await message.reply(reply);
     } catch (error) {
