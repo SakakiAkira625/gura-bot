@@ -2,7 +2,7 @@ require('dotenv').config();
 
 const requiredEnvVars = [
   'DISCORD_TOKEN', 
-  'GROQ_API_KEY',
+  'NVIDIA_API_KEY',
   'DB_HOST',
   'DB_USER',
   'DB_PASSWORD',
@@ -20,7 +20,7 @@ validateEnv();
 
 module.exports = {
   DISCORD_TOKEN: process.env.DISCORD_TOKEN,
-  GROQ_API_KEY: process.env.GROQ_API_KEY,
+  NVIDIA_API_KEY: process.env.NVIDIA_API_KEY,
   DB_HOST: process.env.DB_HOST || 'localhost',
   DB_PORT: process.env.DB_PORT || 3306,
   DB_USER: process.env.DB_USER,

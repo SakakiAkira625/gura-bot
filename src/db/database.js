@@ -53,6 +53,15 @@ async function getDb() {
       )
     `);
 
+    // 建立指令允許頻道表
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS command_channels (
+        guild_id VARCHAR(255),
+        channel_id VARCHAR(255),
+        PRIMARY KEY (guild_id, channel_id)
+      )
+    `);
+
     // 封裝層 (Wrapper): 讓 mysql2 的語法相容原本 sqlite 的語法，減少商業邏輯的改動
     pool.run = async (sql, params = []) => {
       const [result] = await pool.execute(sql, params);

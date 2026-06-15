@@ -1,7 +1,9 @@
 const { franc } = require('franc');
 const { detectChinese } = require('../utils/helpers');
 const { getSystemPromptByLang } = require('../data/persona');
-const { askGroq } = require('../services/groqService');
+const { askNvidiaWithFallback } = require('../services/nvidiaService');
+const { classifyIntent, extractWikiKeyword } = require('../services/intentEngine');
+const { fetchWikiSummary } = require('../services/wikiService');
 const logger = require('../utils/logger');
 const { getMessage } = require('../utils/i18n');
 const { getDb } = require('../db/database');
@@ -17,13 +19,7 @@ module.exports = {
     // Detect language early
     const langCode = detectChinese(userPrompt) ? 'cmn' : franc(userPrompt);
 
-    // Handle Commands (Legacy Text Command)
-    if (userPrompt.startsWith('/查詢wiki ')) {
-      const q = userPrompt.slice(8).trim();
-      const command = message.client.commands.get('wiki');
-      if (command) return command.executeText(message, q, langCode);
-      return;
-    }
+    const { mapLangCodeToWikiLang } = require('../utils/helpers');
 
     const db = await getDb();
     const userId = message.author.id;
@@ -73,7 +69,35 @@ module.exports = {
       const systemPrompt = getSystemPromptByLang(langCode);
 
       await message.channel.sendTyping();
-      const reply = await askGroq(userPromptWithName, history, systemPrompt);
+      
+      const intent = await classifyIntent(userPrompt);
+      logger.info(`[Intent Engine] User: ${message.author.username} | Intent: ${intent}`);
+
+      let reply = '';
+      if (intent === 'WIKI_SEARCH') {
+        const keyword = await extractWikiKeyword(userPrompt);
+        logger.info(`[Intent Engine] Wiki Keyword extracted: ${keyword}`);
+        const wikiLang = mapLangCodeToWikiLang(langCode);
+        const wikiData = await fetchWikiSummary(keyword, wikiLang);
+
+        let wikiContextPrompt = systemPrompt;
+        if (wikiData) {
+          wikiContextPrompt = {
+            role: 'system',
+            content: `${systemPrompt.content}\n\n【維基百科搜尋結果】\n請根據以下資料，用Gura的語氣簡單向使用者說明：\n${wikiData}`
+          };
+        } else {
+          wikiContextPrompt = {
+            role: 'system',
+            content: `${systemPrompt.content}\n\n【系統提示】找不到相關資料，請用Gura的語氣向使用者裝傻或抱怨找不到。`
+          };
+        }
+        reply = await askNvidiaWithFallback(userPromptWithName, history, wikiContextPrompt, 'CHAT');
+      } else if (intent === 'CODE') {
+        reply = await askNvidiaWithFallback(userPromptWithName, history, systemPrompt, 'CODE');
+      } else {
+        reply = await askNvidiaWithFallback(userPromptWithName, history, systemPrompt, 'CHAT');
+      }
 
       // 儲存 Gura 的回覆 (機器人本身的 user_id)
       await db.run('INSERT INTO history (user_id, channel_id, role, content, timestamp) VALUES (?, ?, ?, ?, ?)', [message.client.user.id, channelId, 'assistant', reply, Date.now()]);

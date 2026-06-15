@@ -1,6 +1,6 @@
 const { MessageFlags, SlashCommandBuilder } = require('discord.js');
 const { fetchWikiSummary } = require('../services/wikiService');
-const { askGroq } = require('../services/groqService');
+const { askNvidia } = require('../services/nvidiaService');
 const { getSystemPromptByLang } = require('../data/persona');
 const { getMessage } = require('../utils/i18n');
 const logger = require('../utils/logger');
@@ -25,7 +25,7 @@ async function handleWikiCommand(message, query, langCode) {
   }
 
   try {
-    const reply = await askGroq(prompt, [], systemPrompt);
+    const reply = await askNvidia(prompt, [], systemPrompt, 'meta/llama-3.1-70b-instruct');
     // If the reply is somehow still over 2000 characters, truncate it safely
     const safeReply = reply.length > 1950 ? reply.slice(0, 1950) + '... (字數太多被截斷啦！)' : reply;
     await loadingMsg.edit(safeReply);
@@ -57,7 +57,7 @@ async function handleWikiInteraction(interaction, query, langCode) {
   }
 
   try {
-    const reply = await askGroq(prompt, [], systemPrompt);
+    const reply = await askNvidia(prompt, [], systemPrompt, 'meta/llama-3.1-70b-instruct');
     const safeReply = reply.length > 1950 ? reply.slice(0, 1950) + '... (字數太多被截斷啦！)' : reply;
     await interaction.editReply(safeReply);
   } catch (error) {
