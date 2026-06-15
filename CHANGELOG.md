@@ -5,6 +5,13 @@
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 並且本專案遵循 [語意化版本控制 (Semantic Versioning)](https://semver.org/spec/v2.0.0.html)。
 
+## [1.4.0] - 2026-06-15
+
+### 新增 (Added)
+- 導入本地端 SQLite 資料庫 (`better-sqlite3` 替代品 `sqlite3` + `sqlite`) 作為永久資料儲存方案。
+- **好感度與等級系統**：使用者透過與 Gura 聊天可以累積 Shrimp Points (XP)，並透過 `/rank` 斜線指令查詢目前好感度。
+- **對話永久化 (Persistent Memory)**：Gura 的聊天上下文現在改為寫入資料庫，解決機器人重啟後會遺忘聊天對話的問題。
+
 ## [1.3.0] - 2026-06-15
 
 ### 新增 (Added)

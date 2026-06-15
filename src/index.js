@@ -3,6 +3,10 @@ const { DISCORD_TOKEN } = require('./config/env');
 const logger = require('./utils/logger');
 const fs = require('fs');
 const path = require('path');
+const { getDb } = require('./db/database');
+
+// 初始化資料庫
+getDb();
 
 const client = new Client({
   intents: [
