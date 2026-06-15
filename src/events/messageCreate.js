@@ -63,12 +63,12 @@ module.exports = {
       // 加入使用者名稱讓 Gura 可以識別是誰在說話
       const userPromptWithName = `[${message.author.username}]: ${userPrompt}`;
 
-      // 儲存使用者的對話
-      await db.run('INSERT INTO history (user_id, channel_id, role, content, timestamp) VALUES (?, ?, ?, ?, ?)', [userId, channelId, 'user', userPromptWithName, now]);
-
-      // 讀取最近的 10 筆對話紀錄
+      // 讀取最近的 10 筆對話紀錄 (取得先前的歷史，不包含當前訊息)
       const rawHistory = await db.all('SELECT role, content FROM history WHERE channel_id = ? ORDER BY timestamp DESC LIMIT 10', [channelId]);
       const history = rawHistory.reverse(); // 將時間排序轉正
+
+      // 儲存使用者的當前對話
+      await db.run('INSERT INTO history (user_id, channel_id, role, content, timestamp) VALUES (?, ?, ?, ?, ?)', [userId, channelId, 'user', userPromptWithName, now]);
 
       const systemPrompt = getSystemPromptByLang(langCode);
 
