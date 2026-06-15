@@ -12,10 +12,15 @@ Analyze the user's message and classify their intent into EXACTLY ONE of the fol
 
 - CHAT: General conversation, roleplay, greetings, small talk, jokes, asking for opinions.
 - WIKI_SEARCH: Asking for factual knowledge, definitions, history, "what is X", "who is X".
-- CODE: Asking to write code, debug, explain code, or solve complex math/logic puzzles.
+- CODE: Asking to write code, debug, explain code, create a script, or solve math puzzles.
 
-You must output ONLY the category name. Do NOT output any other text, punctuation, or explanation.
-Example Output: CHAT
+You must output ONLY the category name. Do NOT output any other text.
+Examples:
+User: "早安鯊鯊！" -> CHAT
+User: "愛因斯坦是誰？" -> WIKI_SEARCH
+User: "妳有辦法寫個簡單的貪食蛇嗎" -> CODE
+User: "幫我除錯這段 Python" -> CODE
+User: "今天晚餐吃什麼好？" -> CHAT
 `.trim()
 };
 
