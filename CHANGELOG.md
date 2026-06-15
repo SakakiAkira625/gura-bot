@@ -5,8 +5,12 @@
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 並且本專案遵循 [語意化版本控制 (Semantic Versioning)](https://semver.org/spec/v2.0.0.html)。
 
-## [2.1.5] - 2026-06-16
+## [2.1.6] - 2026-06-16
 
+### 修復 (Fixed)
+- **部署遺漏檔案補齊**：修復了在先前版本發布時，部分新建立的功能模組（如 `dreamEngine.js`, `embeddingService.js`, `trigger_dream.js`, `fileHelper.js`）未被加入至 Git 版本控制，導致部署至伺服器時發生 `Cannot find module './embeddingService'` 的崩潰錯誤。目前已將所有依賴檔案加入追蹤並釋出。
+
+## [2.1.5] - 2026-06-16
 ### 修復 (Fixed)
 - **海馬迴系統提示強化**：修復了即使海馬迴成功檢索到過往記憶，但 LLM 仍會受限於「記憶力像金魚」的 Persona 設定而裝傻說忘記的問題。現在在注入記憶時，會加上強烈的 System Prompt 覆寫指令，強制 Gura 必須準確回答檢索到的內容，並表現出得意感。
 
