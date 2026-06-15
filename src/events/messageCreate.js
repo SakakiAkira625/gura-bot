@@ -197,7 +197,35 @@ module.exports = {
       const finalReply = reply + `\n\n-# 回覆耗時: ${timeTaken} 秒`;
       
       logger.info(`[AI Response to ${message.author.username}]: ${finalReply}`);
-      await message.reply(finalReply);
+      
+      // 處理 Discord 2000 字元限制
+      const maxLength = 1990;
+      if (finalReply.length <= maxLength) {
+        await message.reply(finalReply);
+      } else {
+        let remainingText = finalReply;
+        let isFirst = true;
+        while (remainingText.length > 0) {
+          let chunkLength = maxLength;
+          if (remainingText.length > maxLength) {
+            // 尋找最後一個換行符號，盡量不切斷句子或程式碼區塊
+            const lastNewline = remainingText.lastIndexOf('\n', maxLength);
+            if (lastNewline > 0) {
+              chunkLength = lastNewline;
+            }
+          }
+          
+          let chunk = remainingText.slice(0, chunkLength);
+          remainingText = remainingText.slice(chunkLength).trimStart();
+          
+          if (isFirst) {
+            await message.reply(chunk);
+            isFirst = false;
+          } else {
+            await message.channel.send(chunk);
+          }
+        }
+      }
 
       // 對話結束後，背景非同步執行海馬迴總結與沉澱
       summarizeAndStoreMemory(userId, channelId).catch(e => logger.error(`[海馬迴背景處理失敗] ${e.message}`));

@@ -5,6 +5,11 @@
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 並且本專案遵循 [語意化版本控制 (Semantic Versioning)](https://semver.org/spec/v2.0.0.html)。
 
+## [2.1.9] - 2026-06-16
+
+### 修復 (Fixed)
+- **Discord 2000 字元限制崩潰問題**：修復了當模型（特別是 `CODE` 意圖）產生超過 2000 個字元的超長回覆或程式碼時，Discord API 會拒絕請求並拋出 `DiscordAPIError[50035]: Invalid Form Body`，導致後續流程中斷的問題。現在在 `messageCreate.js` 實作了自動切分發送機制（依賴換行符號），確保長訊息能被正確分段回覆。
+
 ## [2.1.8] - 2026-06-16
 
 ### 新增 (Added)
