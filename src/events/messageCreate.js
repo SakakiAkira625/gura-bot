@@ -1,6 +1,6 @@
 const { franc } = require('franc');
 const { detectChinese } = require('../utils/helpers');
-const { getSystemPromptByLang } = require('../data/persona');
+const { getSystemPromptByLang, getPersonaErrorReply } = require('../data/persona');
 const { askNvidiaWithFallback } = require('../services/nvidiaService');
 const { classifyIntent, extractWikiKeyword } = require('../services/intentEngine');
 const { fetchWikiSummary } = require('../services/wikiService');
@@ -70,6 +70,7 @@ module.exports = {
 
       await message.channel.sendTyping();
       
+      const reqStartTime = Date.now();
       const intent = await classifyIntent(userPrompt);
       logger.info(`[Intent Engine] User: ${message.author.username} | Intent: ${intent}`);
 
@@ -98,6 +99,10 @@ module.exports = {
       } else {
         reply = await askNvidiaWithFallback(userPromptWithName, history, systemPrompt, 'CHAT');
       }
+      
+      const reqEndTime = Date.now();
+      const timeTaken = ((reqEndTime - reqStartTime) / 1000).toFixed(1);
+      reply += `\n\n-# 回覆耗時: ${timeTaken} 秒`;
 
       // 儲存 Gura 的回覆 (機器人本身的 user_id)
       await db.run('INSERT INTO history (user_id, channel_id, role, content, timestamp) VALUES (?, ?, ?, ?, ?)', [message.client.user.id, channelId, 'assistant', reply, Date.now()]);
@@ -107,7 +112,8 @@ module.exports = {
     } catch (error) {
       logger.error('Error handling message:', error.message);
       try {
-         await message.reply(getMessage(langCode, 'error'));
+        const errorReply = getPersonaErrorReply(langCode, error.status);
+        await message.reply(errorReply);
       } catch(e) {}
     }
   },

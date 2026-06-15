@@ -5,9 +5,17 @@
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 並且本專案遵循 [語意化版本控制 (Semantic Versioning)](https://semver.org/spec/v2.0.0.html)。
 
-## [2.0.1] - 2026-06-15
+## [2.1.0] - 2026-06-15
 
-### 修正 (Fixed)
+### 新增 (Added)
+- **動態超時機制 (Dynamic Timeout)**: 針對不同意圖 (CHAT, CODE, VISION, AUDIO) 實作不同的 API 請求超時容忍度，徹底解決生成長篇程式碼時被 15 秒限制誤殺的問題。
+- **Persona 報錯整合**: 將生硬的 API 錯誤 (如 429 限流、500 Timeout) 轉化為符合 Gura 角色的專屬回應 (如大腦超載、George 模式當機)，大幅提升 UX 沉浸感。
+- **回覆耗時顯示**: 於每則對話結尾利用 Discord 官方最新的 Subtext Markdown (`-#`) 顯示該次回覆的運算耗時。
+
+### 變更 (Changed)
+- 刪除了原本用於壓測模型延遲時間的測試腳本 `tests/benchmark.js`。
+
+## [2.0.1] - 2026-06-15
 - 修復 `intentEngine.js` 判定問題：由於小模型 (8B) 容易將口語化的程式請求（如「妳有辦法寫個簡單的...」）誤判為一般聊天 `CHAT`，現已在 System Prompt 中加入 Few-Shot 範例，強迫將此類意圖正確歸類為 `CODE` 模式。
 
 ## [2.0.0] - 2026-06-15

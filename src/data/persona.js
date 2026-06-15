@@ -90,7 +90,26 @@ ${guraPersona.content}
   };
 }
 
+function getPersonaErrorReply(langCode, errorCode) {
+  const isEn = langCode && langCode.toLowerCase().startsWith('en');
+  
+  if (errorCode === 429) {
+    return isEn 
+      ? 'Shaark! My brain is overloaded! Too many people talking to me, let me rest for a few seconds... A! (Error: 429)'
+      : 'Shaark！大腦超載了！太多人找我講話，讓我休息幾秒鐘... A！ (錯誤代碼: 429)';
+  } else if (errorCode === 'Timeout') {
+    return isEn
+      ? 'A... My brain just crashed (George mode activated), can you say that again? (Error: Timeout)'
+      : 'A... 我的腦袋當機了 (George 模式啟動)，能再說一次嗎？ (錯誤代碼: Timeout)';
+  } else {
+    return isEn
+      ? `A... Something smells fishy, a bug bit my wires! (Error: ${errorCode || 500})`
+      : `A... 好像哪裡怪怪的，有蟲子 (Bug) 咬了我的線！ (錯誤代碼: ${errorCode || 500})`;
+  }
+}
+
 module.exports = {
   guraPersona,
   getSystemPromptByLang,
+  getPersonaErrorReply,
 };

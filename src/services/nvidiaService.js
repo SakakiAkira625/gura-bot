@@ -8,13 +8,22 @@ const openai = new OpenAI({
   baseURL: 'https://integrate.api.nvidia.com/v1',
 });
 
+// 動態超時對照表 (基於本地測試數據)
+const TIMEOUT_MAP = {
+  'CHAT': 90000,
+  'WIKI_SEARCH': 90000,
+  'CODE': 120000,
+  'VISION': 180000,
+  'AUDIO': 120000
+};
+
 // 等待函數
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
- * 呼叫單一模型並有超時機制 (15秒)
+ * 呼叫單一模型並有動態超時機制
  */
-async function callModelWithTimeout(prompt, history, systemPrompt, modelName, temperature = 0.85) {
+async function callModelWithTimeout(prompt, history, systemPrompt, modelName, timeoutMs = 90000, temperature = 0.85) {
   const messages = [];
   if (systemPrompt) messages.push(systemPrompt);
   
@@ -27,7 +36,7 @@ async function callModelWithTimeout(prompt, history, systemPrompt, modelName, te
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒超時
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const completion = await openai.chat.completions.create({
@@ -59,6 +68,9 @@ async function callModelWithTimeout(prompt, history, systemPrompt, modelName, te
 async function askNvidiaWithFallback(prompt, history, systemPrompt, intent = 'CHAT') {
   const models = modelManager.getModelsForIntent(intent);
   const maxTries = Math.min(3, models.length); // 最多嘗試 3 個備用模型
+  const timeoutMs = TIMEOUT_MAP[intent] || 90000;
+  
+  let lastError = null;
 
   for (let i = 0; i < maxTries; i++) {
     const currentModel = models[i];
@@ -68,18 +80,31 @@ async function askNvidiaWithFallback(prompt, history, systemPrompt, intent = 'CH
         await delay(1000); // 失敗後強制冷卻 1 秒，保護 40 RPM
       }
 
-      const response = await callModelWithTimeout(prompt, history, systemPrompt, currentModel);
+      const response = await callModelWithTimeout(prompt, history, systemPrompt, currentModel, timeoutMs);
       return response;
 
     } catch (error) {
+      lastError = error;
       logger.error(`[NVIDIA API Error] 模型 ${currentModel} 執行失敗或超時: ${error.message}`);
       
-      // 如果已經是最後一次嘗試，就把錯誤拋出去
-      if (i === maxTries - 1) {
-        throw new Error('抱歉啦，我的大腦剛剛短路了一下，請再說一次！(API Error or Timeout)');
+      // 如果遇到 429 Too Many Requests，直接跳出迴圈避免繼續浪費額度
+      if (error.status === 429) {
+        break;
       }
     }
   }
+
+  // 整理要拋出的錯誤供 messageCreate 捕捉
+  if (lastError && lastError.status === 429) {
+    const err = new Error('Rate Limit Exceeded');
+    err.status = 429;
+    throw err;
+  }
+  
+  const err = new Error(lastError ? lastError.message : 'API Error or Timeout');
+  err.status = lastError && lastError.status ? lastError.status : 500;
+  if (lastError && lastError.name === 'AbortError') err.status = 'Timeout';
+  throw err;
 }
 
 // 為了相容原本可能有其他地方直接使用，保留 askNvidia 但實際已不用
