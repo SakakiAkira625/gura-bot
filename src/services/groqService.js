@@ -16,6 +16,7 @@ async function askGroq(prompt, history, systemPrompt) {
         timeout: 10000 // 10 second timeout
       }
     );
+    logger.info(`[Groq API Raw Response]: ${JSON.stringify(res.data)}`);
     return res.data.choices[0].message.content;
   } catch (error) {
     logger.error('Groq API Error:', error.message);
