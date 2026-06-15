@@ -5,6 +5,11 @@
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 並且本專案遵循 [語意化版本控制 (Semantic Versioning)](https://semver.org/spec/v2.0.0.html)。
 
+## [2.1.7] - 2026-06-16
+
+### 修復 (Fixed)
+- **NVIDIA API 404 崩潰與模型不可用問題**：修復了 `modelManager.js` 在同步可用模型時，僅會過濾健康度但仍會保留並切換至 404 不可用模型的問題，這導致程式在嘗試所有 fallback 皆遭遇 404 後拋出例外中斷執行。現在系統會在背景平行測試該意圖的所有首選模型，並將無法回應的無效模型完全剔除出 activeModels，確保 `CODE` 與其他意圖能穩定切換到真正健康的可用模型。同時也更新了首選清單移除已下架的過期模型。
+
 ## [2.1.6] - 2026-06-16
 
 ### 修復 (Fixed)

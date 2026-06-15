@@ -14,23 +14,19 @@ const MODELS_DATA_PATH = path.join(__dirname, '..', 'data', 'models.json');
 // 我們精心設計的首選排序梯隊
 const PREFERRED_MODELS = {
   CODE: [
+    'deepseek-ai/deepseek-v4-flash',
     'meta/llama-3.3-70b-instruct',
-    'mistralai/codestral-22b-instruct-v0.1',
-    'deepseek-ai/deepseek-coder-6.7b-instruct',
-    'ibm/granite-34b-code-instruct',
-    'meta/llama-3.1-70b-instruct'
+    'meta/llama-3.1-70b-instruct',
+    'meta/llama-3.1-8b-instruct'
   ],
   CHAT: [
-    'nvidia/llama-3.1-nemotron-70b-instruct',
+    'deepseek-ai/deepseek-v4-flash',
     'meta/llama-3.3-70b-instruct',
-    'mistralai/mistral-large-2-instruct',
-    'mistralai/mistral-large',
     'meta/llama-3.1-70b-instruct',
-    '01-ai/yi-large'
+    'meta/llama-3.1-8b-instruct'
   ],
   VISION: [
     'meta/llama-3.2-90b-vision-instruct',
-    'microsoft/phi-3-vision-128k-instruct',
     'meta/llama-3.2-11b-vision-instruct'
   ]
 };
@@ -87,23 +83,18 @@ async function syncModels() {
       // 1. 確保該模型在 availableModels 清單中
       let intentModels = PREFERRED_MODELS[intent].filter(m => availableModels.includes(m));
       
-      // 2. 為了節省 RPM，我們只對該意圖的前兩名 (Top 2) 進行實際 API 的 Health Check
-      const top2 = intentModels.slice(0, 2);
-      const remaining = intentModels.slice(2);
+      // 2. 對過濾後的模型進行平行健康檢查
+      const healthResults = await Promise.all(
+        intentModels.map(async (m) => {
+          const isHealthy = await healthCheck(m);
+          return { model: m, healthy: isHealthy };
+        })
+      );
       
-      const healthyTop = [];
-      for (const m of top2) {
-        const isHealthy = await healthCheck(m);
-        if (isHealthy) {
-          healthyTop.push(m);
-        } else {
-          // 不健康的丟到最後面
-          remaining.push(m);
-        }
-      }
+      const healthyModels = healthResults.filter(r => r.healthy).map(r => r.model);
       
-      // 重新組合排序
-      activeModels[intent] = [...healthyTop, ...remaining];
+      // 更新可用清單 (只保留健康的)
+      activeModels[intent] = healthyModels.length > 0 ? healthyModels : PREFERRED_MODELS[intent];
       
       const added = activeModels[intent].length - (oldData[intent] ? oldData[intent].length : 0);
       const diffText = added > 0 ? `(新增 ${added} 個可用)` : added < 0 ? `(減少 ${Math.abs(added)} 個可用)` : `(無變化)`;
