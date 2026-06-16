@@ -10,12 +10,9 @@ const play = require('play-dl');
 const logger = require('../utils/logger');
 
 // 每伺服器獨立的播放隊列狀態
-// 格式: guildId => { connection, player, queue: [{ url, title, duration, ... }], current: null }
+// 格式: guildId => { connection, player, queue: [{ url, title, duration, spData, isSpotify }], current: null, textChannel: null }
 const queues = new Map();
 
-/**
- * 取得或初始化伺服器的播放狀態
- */
 function getServerQueue(guildId) {
     if (!queues.has(guildId)) {
         queues.set(guildId, {
@@ -28,7 +25,6 @@ function getServerQueue(guildId) {
 
         const serverQueue = queues.get(guildId);
         
-        // 監聽播放器狀態
         serverQueue.player.on(AudioPlayerStatus.Idle, () => {
             logger.info(`[Music] 歌曲播放結束 (${guildId})`);
             serverQueue.current = null;
@@ -37,6 +33,9 @@ function getServerQueue(guildId) {
 
         serverQueue.player.on('error', error => {
             logger.error(`[Music] Player Error (${guildId}):`, error.message);
+            if (serverQueue.textChannel) {
+                serverQueue.textChannel.send(`❌ 播放時發生錯誤，自動跳過該首歌曲。`);
+            }
             serverQueue.current = null;
             playNext(guildId);
         });
@@ -44,38 +43,39 @@ function getServerQueue(guildId) {
     return queues.get(guildId);
 }
 
-/**
- * 授權 Spotify API (如果環境變數有提供)
- */
 async function initSpotify() {
-    if (process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET) {
-        try {
+    try {
+        if (process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET) {
             await play.setToken({
                 spotify: {
                     client_id: process.env.SPOTIFY_CLIENT_ID,
                     client_secret: process.env.SPOTIFY_CLIENT_SECRET,
                     market: 'US',
-                    refresh_token: '', // play-dl 會自動處理 client credentials flow
+                    refresh_token: ''
                 }
             });
-            logger.info('[Music] Spotify API token initialized successfully.');
-        } catch (e) {
-            logger.error('[Music] Failed to init Spotify token:', e.message);
+            logger.info('[Music] Spotify API token initialized via ENV.');
+        } else {
+            await play.setToken({
+                spotify: {
+                    client_id: await play.getFreeClientID(),
+                    client_secret: '',
+                    market: 'US',
+                    refresh_token: ''
+                }
+            });
+            logger.info('[Music] Spotify API initialized with FREE Client ID.');
         }
-    } else {
-        logger.warn('[Music] No SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET provided. Spotify links might not work.');
+    } catch (e) {
+        logger.error('[Music] Failed to init Spotify token:', e.message);
     }
 }
 
-/**
- * 將歌曲加入隊列並嘗試播放
- */
 async function enqueueAndPlay(interaction, query) {
     const guildId = interaction.guild.id;
     const serverQueue = getServerQueue(guildId);
     serverQueue.textChannel = interaction.channel;
 
-    // 連線到語音頻道 (User 要求的 deafen = true, mute = false)
     const voiceChannel = interaction.member.voice.channel;
     if (!voiceChannel) {
         return interaction.editReply('❌ 你必須先加入一個語音頻道！');
@@ -91,7 +91,7 @@ async function enqueueAndPlay(interaction, query) {
                 selfMute: false
             });
 
-            serverQueue.connection.on(VoiceConnectionStatus.Disconnected, async (oldState, newState) => {
+            serverQueue.connection.on(VoiceConnectionStatus.Disconnected, async () => {
                 try {
                     await Promise.race([
                         entersState(serverQueue.connection, VoiceConnectionStatus.Signalling, 5_000),
@@ -112,52 +112,69 @@ async function enqueueAndPlay(interaction, query) {
 
     try {
         let songInfo = [];
+        const spValidate = play.sp_validate(query);
 
-        // 判斷是否為 Spotify 連結
-        if (play.sp_validate(query) === 'track') {
-            if (play.is_expired()) {
-                await play.refreshToken();
+        if (spValidate === 'track' || spValidate === 'playlist' || spValidate === 'album') {
+            try {
+                if (play.is_expired()) {
+                    await play.refreshToken();
+                }
+            } catch (e) {
+                // 若 is_expired() 拋錯 (例如還沒初始過 token)，則補做初始化
+                await initSpotify();
             }
-            const spData = await play.spotify(query);
-            const searchStr = `${spData.name} ${spData.artists.map(a => a.name).join(' ')}`;
-            const ytRes = await play.search(searchStr, { limit: 1 });
-            if (!ytRes || ytRes.length === 0) throw new Error('找不到對應的 YouTube 影片');
             
-            songInfo.push({
-                title: spData.name,
-                url: ytRes[0].url,
-                duration: ytRes[0].durationRaw
-            });
+            const spData = await play.spotify(query);
+            
+            if (spValidate === 'playlist' || spValidate === 'album') {
+                const tracks = await spData.all_tracks();
+                for (const track of tracks) {
+                    songInfo.push({
+                        title: `${track.name} - ${track.artists.map(a => a.name).join(', ')}`,
+                        url: null, // Lazy loading
+                        duration: `${Math.floor(track.durationInSec / 60)}:${(track.durationInSec % 60).toString().padStart(2, '0')}`,
+                        isSpotify: true,
+                        spSearchStr: `${track.name} ${track.artists.map(a => a.name).join(' ')}`
+                    });
+                }
+                await interaction.editReply(`🎵 已將歌單 **${spData.name}** 中的 ${tracks.length} 首歌曲加入隊列！`);
+            } else {
+                // Single Track
+                songInfo.push({
+                    title: `${spData.name} - ${spData.artists.map(a => a.name).join(', ')}`,
+                    url: null,
+                    duration: `${Math.floor(spData.durationInSec / 60)}:${(spData.durationInSec % 60).toString().padStart(2, '0')}`,
+                    isSpotify: true,
+                    spSearchStr: `${spData.name} ${spData.artists.map(a => a.name).join(' ')}`
+                });
+                await interaction.editReply(`🎵 已加入隊列：**${songInfo[0].title}**`);
+            }
         } 
-        // 判斷是否為 YouTube 連結
         else if (play.yt_validate(query) === 'video') {
             const ytInfo = await play.video_info(query);
             songInfo.push({
                 title: ytInfo.video_details.title,
                 url: ytInfo.video_details.url,
-                duration: ytInfo.video_details.durationRaw
+                duration: ytInfo.video_details.durationRaw,
+                isSpotify: false
             });
+            await interaction.editReply(`🎵 已加入隊列：**${songInfo[0].title}** (${songInfo[0].duration})`);
         } 
-        // 其他視為關鍵字搜尋
         else {
+            // Keyword search
             const ytRes = await play.search(query, { limit: 1 });
             if (!ytRes || ytRes.length === 0) throw new Error('找不到相關歌曲');
             songInfo.push({
                 title: ytRes[0].title,
                 url: ytRes[0].url,
-                duration: ytRes[0].durationRaw
+                duration: ytRes[0].durationRaw,
+                isSpotify: false
             });
+            await interaction.editReply(`🎵 已加入隊列：**${songInfo[0].title}** (${songInfo[0].duration})`);
         }
 
         serverQueue.queue.push(...songInfo);
 
-        if (songInfo.length === 1) {
-            await interaction.editReply(`🎵 已加入隊列：**${songInfo[0].title}** (${songInfo[0].duration})`);
-        } else {
-            await interaction.editReply(`🎵 已加入隊列：多首歌曲`);
-        }
-
-        // 如果目前沒有正在播放，就開始播
         if (!serverQueue.current) {
             playNext(guildId);
         }
@@ -168,35 +185,33 @@ async function enqueueAndPlay(interaction, query) {
     }
 }
 
-/**
- * 播放下一首歌
- */
 async function playNext(guildId) {
     const serverQueue = queues.get(guildId);
     if (!serverQueue) return;
 
     if (serverQueue.queue.length === 0) {
-        // 如果沒有歌了，延遲 30 秒後若還是沒有歌就離開
         setTimeout(() => {
             const sq = queues.get(guildId);
             if (sq && sq.queue.length === 0 && !sq.current) {
-                if (sq.connection) {
-                    sq.connection.destroy();
-                }
+                if (sq.connection) sq.connection.destroy();
                 queues.delete(guildId);
-                if (sq.textChannel) {
-                    sq.textChannel.send('🎶 歌曲播放完畢，Gura 要去吃鮭魚了，掰掰！');
-                }
+                if (sq.textChannel) sq.textChannel.send('🎶 歌曲播放完畢，Gura 要去吃鮭魚了，掰掰！');
             }
         }, 30000);
         return;
     }
 
-    // 拿出第一首
     const song = serverQueue.queue.shift();
     serverQueue.current = song;
 
     try {
+        // Lazy Loading: Resolve Spotify to YouTube URL just in time
+        if (song.isSpotify && !song.url) {
+            const ytRes = await play.search(song.spSearchStr, { limit: 1 });
+            if (!ytRes || ytRes.length === 0) throw new Error('找不到對應的 YouTube 影片');
+            song.url = ytRes[0].url;
+        }
+
         const stream = await play.stream(song.url);
         const resource = createAudioResource(stream.stream, { inputType: stream.type });
         serverQueue.player.play(resource);
@@ -213,35 +228,35 @@ async function playNext(guildId) {
     }
 }
 
-/**
- * 跳過當前歌曲
- */
 function skipSong(guildId) {
     const serverQueue = queues.get(guildId);
     if (!serverQueue || !serverQueue.current) return false;
-    serverQueue.player.stop(); // 觸發 Idle 事件自動播下一首
+    serverQueue.player.stop(); // Triggers Idle -> next song
     return true;
 }
 
-/**
- * 停止播放並離開
- */
 function stopMusic(guildId) {
     const serverQueue = queues.get(guildId);
     if (!serverQueue) return false;
-    
     serverQueue.queue = [];
     serverQueue.player.stop();
-    if (serverQueue.connection) {
-        serverQueue.connection.destroy();
-    }
+    if (serverQueue.connection) serverQueue.connection.destroy();
     queues.delete(guildId);
     return true;
 }
 
-/**
- * 取得當前播放狀態
- */
+function pauseMusic(guildId) {
+    const serverQueue = queues.get(guildId);
+    if (!serverQueue || !serverQueue.current) return false;
+    return serverQueue.player.pause();
+}
+
+function resumeMusic(guildId) {
+    const serverQueue = queues.get(guildId);
+    if (!serverQueue || !serverQueue.current) return false;
+    return serverQueue.player.unpause();
+}
+
 function getStatus(guildId) {
     return queues.get(guildId);
 }
@@ -252,5 +267,7 @@ module.exports = {
     playNext,
     skipSong,
     stopMusic,
+    pauseMusic,
+    resumeMusic,
     getStatus
 };
