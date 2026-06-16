@@ -19,5 +19,9 @@ module.exports = {
     // 啟動每週模型背景掃描排程
     const { scheduleScanning } = require('../services/modelScanner');
     scheduleScanning();
+
+    // 初始化 Spotify 授權
+    const musicEngine = require('../services/musicEngine');
+    await musicEngine.initSpotify();
   },
 };

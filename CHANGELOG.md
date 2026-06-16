@@ -5,6 +5,13 @@
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 並且本專案遵循 [語意化版本控制 (Semantic Versioning)](https://semver.org/spec/v2.0.0.html)。
 
+## [2.3.0] - 2026-06-16
+
+### 新增 (Added)
+- **音樂播放器 (Music Player)**：實作 `musicEngine.js` 並加入 `/play`, `/skip`, `/stop` 指令。
+- **自動進房狀態設定**：機器人加入語音頻道時會自動設定為 `selfDeaf: true` (預設拒聽) 及 `selfMute: false` (麥克風開啟)。
+- **Spotify 完美支援**：原生串接 Spotify API (`SPOTIFY_CLIENT_ID` / `SECRET`)，支援讀取 Spotify 歌曲資料並自動轉尋 YouTube 音源播放。
+
 ## [2.2.0] - 2026-06-16
 
 ### 新增 (Added)
