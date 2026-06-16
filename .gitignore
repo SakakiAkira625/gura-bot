@@ -35,3 +35,5 @@ package-lock.json
 
 # Database
 data.sqlite
+src/data/models.json
+src/data/scanned_models.json
