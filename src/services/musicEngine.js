@@ -235,16 +235,10 @@ async function playNext(guildId) {
             song.durationInSec = ytRes[0].durationInSec;
         }
 
-        const result = await ytdlExec(song.url, {
-            dumpSingleJson: true,
-            noWarnings: true,
-            noCallHome: true,
-            preferFreeFormats: true,
-            youtubeSkipDashManifest: true,
-            f: 'bestaudio'
-        });
-        const resource = createAudioResource(result.url, {
-            inputType: StreamType.Arbitrary
+        // 取得真實的音訊串流 (使用 play-dl)
+        const stream = await play.stream(song.url);
+        const resource = createAudioResource(stream.stream, {
+            inputType: stream.type
         });
         serverQueue.player.play(resource);
         
