@@ -5,7 +5,7 @@ const logger = require('../utils/logger');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('allow_channel')
-    .setDescription('設定允許 Gura 執行 Slash Command 的頻道 (僅限管理員)')
+    .setDescription('設定允許 Gura 進行 AI 對話的文字頻道 (僅限管理員)')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator) // 限制只有管理員可用
     .addStringOption(option =>
       option.setName('action')

@@ -28,6 +28,18 @@ module.exports = {
     const db = await getDb();
     const userId = message.author.id;
     const channelId = message.channel.id;
+    
+    // 檢查頻道是否在 AI 對話白名單內 (如果該伺服器有設定白名單的話)
+    if (message.guildId) {
+      const allowedChannels = await db.all(
+        'SELECT channel_id FROM command_channels WHERE guild_id = ?',
+        [message.guildId]
+      );
+      if (allowedChannels.length > 0) {
+        const isAllowed = allowedChannels.some(row => row.channel_id === channelId);
+        if (!isAllowed) return; // 不在白名單內，不進行 AI 對話
+      }
+    }
     const now = Date.now();
 
     // 🌟 功能一：好感度與等級系統 (Shrimp Level System)

@@ -17,25 +17,7 @@ module.exports = {
         return;
       }
 
-      // 檢查頻道限制 (管理員設定頻道權限的指令永遠放行)
-      if (interaction.commandName !== 'allow_channel' && interaction.guildId) {
-        const db = await getDb();
-        // 取得該伺服器所有允許的頻道清單
-        const allowedChannels = await db.all(
-          'SELECT channel_id FROM command_channels WHERE guild_id = ?',
-          [interaction.guildId]
-        );
 
-        if (allowedChannels.length > 0) {
-          const isAllowed = allowedChannels.some(row => row.channel_id === interaction.channelId);
-          if (!isAllowed) {
-            return interaction.reply({
-              content: '❌ 抱歉啦 Shaark！這個指令只能在指定的頻道使用喔！A！',
-              flags: MessageFlags.Ephemeral
-            });
-          }
-        }
-      }
 
       // 動態抓取第一個選項的值，不管使用者把選項命名成什麼
       const firstOption = interaction.options.data[0];

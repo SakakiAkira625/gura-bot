@@ -5,6 +5,18 @@
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 並且本專案遵循 [語意化版本控制 (Semantic Versioning)](https://semver.org/spec/v2.0.0.html)。
 
+## [2.5.0] - 2026-06-16
+
+### 新增 (Added)
+- **Orihost / Pterodactyl 編譯防護網**：在 `index.js` 核心加入「木馬式自動編譯腳本 (`npm rebuild`)」，強制繞過面板 `ignore-scripts` 限制，自動下載 `ffmpeg` 與編譯 `sodium-native` 底層加密模組，徹底解決雲端伺服器佈署卡住的問題。
+- **音訊進度條即時顯示系統**：`/nowplaying` 支援動態進度條與時間計算。
+
+### 修復 (Fixed)
+- **Discord 語音連線底層翻新**：安裝了正統 `@discordjs/opus` 與 `sodium-native` 等網路連線必備的 C++ 加解密與編解碼套件，修復了進入語音頻道時會卡在 `Signalling -> Connecting` 死迴圈的重大 Bug。
+- **Git 版本管理衝突修復**：將 `models.json` 與 `scanned_models.json` 等會隨機器人運行改變的檔案移出 Git 追蹤名單 (`.gitignore`)，一勞永逸地解決自動 `git pull` 更新失敗的問題。
+- **AI 權限當機修復**：針對缺少 `發送訊息` 權限的語音文字頻道加入了 `try-catch` 防護網，防止觸發 `sendTyping()` 造成機器人全面崩潰。
+- **權限白名單邏輯修正**：把 `/allow_channel` 的白名單限制目標從「所有的 `/指令`」更正為「**吃費用的 AI 自動對話**」。現在音樂指令可以自由在任何地方呼叫，但 AI 聊天只限於被允許的文字頻道，完美防止濫用 (Abuse)。
+
 ## [2.4.0] - 2026-06-16
 
 ### 新增 (Added)
