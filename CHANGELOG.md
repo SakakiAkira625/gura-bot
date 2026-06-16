@@ -4,6 +4,11 @@
 
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 並且本專案遵循 [語意化版本控制 (Semantic Versioning)](https://semver.org/spec/v2.0.0.html)。
+## [2.5.1] - 2026-06-16
+
+### 修復 (Fixed)
+- **音樂播放訊息權限崩潰修復**：為 `musicEngine.js` 中播放歌曲時的頻道通知訊息（`▶️ 正在播放...`）加入 `try-catch` 防護，避免使用者在沒有「發送訊息」權限的語音文字頻道觸發點歌時，導致整個機器人崩潰重啟。
+
 
 ## [2.5.0] - 2026-06-16
 

@@ -249,7 +249,11 @@ async function playNext(guildId) {
         serverQueue.player.play(resource);
         
         if (serverQueue.textChannel) {
-            serverQueue.textChannel.send(`▶️ 正在播放：**${song.title}** (${song.duration})`);
+            try {
+            await serverQueue.textChannel.send(`▶️ 正在播放：**${song.title}** (${song.duration})`);
+        } catch (e) {
+            logger.warn(`無法發送播放訊息，可能缺乏權限: ${e.message}`);
+        }
         }
     } catch (e) {
         logger.error(`[Music] Stream Error for ${song.title}:`, e);
