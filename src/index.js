@@ -4,10 +4,25 @@ const fs = require('fs');
 
 // [System] Orihost/Pterodactyl 限制繞過：檢查核心二進位檔是否因為 ignore-scripts 而沒下載
 try {
+  let needsRebuild = false;
+  
+  // 檢查 ffmpeg 是否存在
   const ffmpegPath = require('ffmpeg-static');
-  if (!ffmpegPath || !fs.existsSync(ffmpegPath)) {
-    console.log('[System] 發現 Orihost 阻擋了套件安裝腳本，正在強制下載 ffmpeg 與編譯 C++ 加密引擎...');
-    execSync('npm approve-scripts --allow-scripts-pending || true', { stdio: 'inherit' });
+  if (!ffmpegPath || !fs.existsSync(ffmpegPath)) needsRebuild = true;
+  
+  // 檢查 Opus 和 Sodium C++ 模組是否編譯成功
+  try {
+    require('@discordjs/opus');
+    require('sodium-native');
+  } catch (e) {
+    needsRebuild = true; // require 失敗代表沒編譯
+  }
+
+  if (needsRebuild) {
+    console.log('[System] 發現 Orihost 阻擋了套件安裝腳本 (C++模組未編譯)，正在強制編譯引擎...');
+    try {
+      execSync('npm approve-scripts --allow-scripts-pending || true', { stdio: 'inherit' });
+    } catch(err) {}
     execSync('npm rebuild', { stdio: 'inherit' });
     console.log('[System] 強制編譯完成！');
   }
