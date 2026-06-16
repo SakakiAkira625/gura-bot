@@ -78,7 +78,7 @@ module.exports = {
         };
 
         const initialUI = generatePlayerUI();
-        await interaction.reply({ ...initialUI, fetchReply: true });
+        await interaction.reply({ ...initialUI });
         
         try {
             const replyMessage = await interaction.fetchReply();
