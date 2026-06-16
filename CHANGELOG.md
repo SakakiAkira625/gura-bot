@@ -5,6 +5,12 @@
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 並且本專案遵循 [語意化版本控制 (Semantic Versioning)](https://semver.org/spec/v2.0.0.html)。
 
+## [2.2.0] - 2026-06-16
+
+### 新增 (Added)
+- **每週自動模型掃描引擎 (Auto Model Scanner)**：新增了背景模型掃描機制 (`modelScanner.js`)，每週日固定從 NVIDIA API 抓取並平行測試所有可用模型（分批並行測試以防觸發 429 速率限制）。掃描出來的模型將會依照關鍵字自動歸類為 `VISION`, `CODE`, `CHAT` 並存入快取。
+- **超深度備用機制 (Deep Fallback)**：`modelManager.js` 現在會將自動掃描產生的 50+ 個存活模型陣列（已隨機洗牌），全數墊在「手動首選模型」的後面作為深度備援。這確保了 Gura 未來遇到原定模型集體下架的極端情況時，依然有源源不絕的備用模型可以切換，實現零當機的穩定度。
+
 ## [2.1.9] - 2026-06-16
 
 ### 修復 (Fixed)

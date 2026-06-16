@@ -15,5 +15,9 @@ module.exports = {
 
     // 啟動深夜作夢引擎排程
     startDreamCronJob();
+
+    // 啟動每週模型背景掃描排程
+    const { scheduleScanning } = require('../services/modelScanner');
+    scheduleScanning();
   },
 };

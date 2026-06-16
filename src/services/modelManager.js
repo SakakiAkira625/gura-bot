@@ -10,6 +10,7 @@ const openai = new OpenAI({
 });
 
 const MODELS_DATA_PATH = path.join(__dirname, '..', 'data', 'models.json');
+const SCANNED_DATA_PATH = path.join(__dirname, '..', 'data', 'scanned_models.json');
 
 // 我們精心設計的首選排序梯隊
 const PREFERRED_MODELS = {
@@ -81,12 +82,20 @@ async function syncModels() {
       } catch (e) {}
     }
 
+    // 讀取背景自動掃描的備用模型庫 (Deep Fallback)
+    let scannedModels = { CODE: [], CHAT: [], VISION: [] };
+    if (fs.existsSync(SCANNED_DATA_PATH)) {
+      try {
+        scannedModels = JSON.parse(fs.readFileSync(SCANNED_DATA_PATH, 'utf-8'));
+      } catch (e) {}
+    }
+
     // 更新並過濾出可用的模型
     for (const intent of ['CODE', 'CHAT', 'VISION']) {
       // 1. 確保該模型在 availableModels 清單中
       let intentModels = PREFERRED_MODELS[intent].filter(m => availableModels.includes(m));
       
-      // 2. 對過濾後的模型進行平行健康檢查
+      // 2. 對過濾後的手動首選模型進行平行健康檢查
       const healthResults = await Promise.all(
         intentModels.map(async (m) => {
           const isHealthy = await healthCheck(m);
@@ -94,14 +103,25 @@ async function syncModels() {
         })
       );
       
-      const healthyModels = healthResults.filter(r => r.healthy).map(r => r.model);
+      const healthyPreferred = healthResults.filter(r => r.healthy).map(r => r.model);
       
-      // 更新可用清單 (只保留健康的)
-      activeModels[intent] = healthyModels.length > 0 ? healthyModels : PREFERRED_MODELS[intent];
+      // 3. 組合最終可用清單：首選健康模型 + 自動掃描模型 (過濾重複)
+      let finalModels = [...healthyPreferred];
+      
+      if (scannedModels[intent] && Array.isArray(scannedModels[intent])) {
+        for (const scannedModel of scannedModels[intent]) {
+          if (!finalModels.includes(scannedModel) && availableModels.includes(scannedModel)) {
+            finalModels.push(scannedModel);
+          }
+        }
+      }
+
+      // 如果全部都壞掉，至少塞預設值
+      activeModels[intent] = finalModels.length > 0 ? finalModels : PREFERRED_MODELS[intent];
       
       const added = activeModels[intent].length - (oldData[intent] ? oldData[intent].length : 0);
       const diffText = added > 0 ? `(新增 ${added} 個可用)` : added < 0 ? `(減少 ${Math.abs(added)} 個可用)` : `(無變化)`;
-      logger.info(`[Model Manager] ${intent} 意圖模型已更新，共 ${activeModels[intent].length} 個可用 ${diffText}`);
+      logger.info(`[Model Manager] ${intent} 意圖模型已更新，共 ${activeModels[intent].length} 個可用 ${diffText} (其中首選 ${healthyPreferred.length} 個)`);
     }
 
     // 儲存到硬碟
