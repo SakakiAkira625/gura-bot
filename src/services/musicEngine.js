@@ -10,6 +10,8 @@ const {
 const play = require('play-dl');
 const ytdlExec = require('youtube-dl-exec');
 const logger = require('../utils/logger');
+const fetch = require('node-fetch');
+const spotifyInfo = require('spotify-url-info')(fetch);
 
 // 每伺服器獨立的播放隊列狀態
 // 格式: guildId => { connection, player, queue: [{ url, title, duration, spData, isSpotify }], current: null, textChannel: null }
@@ -23,13 +25,29 @@ function getServerQueue(guildId) {
             queue: [],
             current: null,
             textChannel: null,
-            isPaused: false
+            isPaused: false,
+            loopMode: 0, // 0: Off, 1: Song, 2: Queue
+            volume: 100, // 1-100
+            playerMessage: null,
+            playerInterval: null
         });
 
         const serverQueue = queues.get(guildId);
         
         serverQueue.player.on(AudioPlayerStatus.Idle, () => {
             logger.info(`[Music] 歌曲播放結束 (${guildId})`);
+            
+            // 處理循環邏輯
+            if (serverQueue.current) {
+                if (serverQueue.loopMode === 1) {
+                    // 單曲循環：放回隊列最前面
+                    serverQueue.queue.unshift(serverQueue.current);
+                } else if (serverQueue.loopMode === 2) {
+                    // 列表循環：放回隊列最後面
+                    serverQueue.queue.push(serverQueue.current);
+                }
+            }
+            
             serverQueue.current = null;
             playNext(guildId);
         });
@@ -133,40 +151,25 @@ async function enqueueAndPlay(interaction, query) {
         const spValidate = play.sp_validate(query);
 
         if (spValidate === 'track' || spValidate === 'playlist' || spValidate === 'album') {
-            try {
-                if (play.is_expired()) {
-                    await play.refreshToken();
-                }
-            } catch (e) {
-                // 若 is_expired() 拋錯 (例如還沒初始過 token)，則補做初始化
-                await initSpotify();
-            }
-            
-            const spData = await play.spotify(query);
-            
-            if (spValidate === 'playlist' || spValidate === 'album') {
-                const tracks = await spData.all_tracks();
-                for (const track of tracks) {
-                    songInfo.push({
-                        title: `${track.name} - ${track.artists.map(a => a.name).join(', ')}`,
-                        url: null, // Lazy loading
-                        duration: `${Math.floor(track.durationInSec / 60)}:${(track.durationInSec % 60).toString().padStart(2, '0')}`,
-                        durationInSec: track.durationInSec,
-                        isSpotify: true,
-                        spSearchStr: `${track.name} ${track.artists.map(a => a.name).join(' ')}`
-                    });
-                }
-                await interaction.editReply(`🎵 已將歌單 **${spData.name}** 中的 ${tracks.length} 首歌曲加入隊列！`);
-            } else {
-                // Single Track
+            const tracks = await spotifyInfo.getTracks(query);
+            if (!tracks || tracks.length === 0) throw new Error('無法解析 Spotify 連結。');
+
+            for (const track of tracks) {
+                const durationInSec = Math.floor(track.duration / 1000);
                 songInfo.push({
-                    title: `${spData.name} - ${spData.artists.map(a => a.name).join(', ')}`,
-                    url: null,
-                    duration: `${Math.floor(spData.durationInSec / 60)}:${(spData.durationInSec % 60).toString().padStart(2, '0')}`,
-                    durationInSec: spData.durationInSec,
+                    title: `${track.name} - ${track.artist}`,
+                    url: null, // Lazy loading
+                    duration: `${Math.floor(durationInSec / 60)}:${(durationInSec % 60).toString().padStart(2, '0')}`,
+                    durationInSec: durationInSec,
                     isSpotify: true,
-                    spSearchStr: `${spData.name} ${spData.artists.map(a => a.name).join(' ')}`
+                    spSearchStr: `${track.name} ${track.artist}`
                 });
+            }
+
+            if (tracks.length > 1) {
+                const details = await spotifyInfo.getPreview(query).catch(() => ({ title: '播放清單' }));
+                await interaction.editReply(`🎵 已將歌單 **${details.title}** 中的 ${tracks.length} 首歌曲加入隊列！`);
+            } else {
                 await interaction.editReply(`🎵 已加入隊列：**${songInfo[0].title}**`);
             }
         } 
@@ -181,6 +184,22 @@ async function enqueueAndPlay(interaction, query) {
             });
             await interaction.editReply(`🎵 已加入隊列：**${songInfo[0].title}** (${songInfo[0].duration})`);
         } 
+        else if (play.yt_validate(query) === 'playlist') {
+            const playlist = await play.playlist_info(query, { incomplete: true });
+            const videos = await playlist.all_videos();
+            for (const video of videos) {
+                if (video.title) {
+                    songInfo.push({
+                        title: video.title,
+                        url: video.url,
+                        duration: video.durationRaw,
+                        durationInSec: video.durationInSec,
+                        isSpotify: false
+                    });
+                }
+            }
+            await interaction.editReply(`🎵 已將 YouTube 播放清單 **${playlist.title}** 中的 ${videos.length} 首歌曲加入隊列！`);
+        }
         else {
             // Keyword search
             const ytRes = await play.search(query, { limit: 1 });
@@ -247,8 +266,10 @@ async function playNext(guildId) {
         }, { stdio: ['ignore', 'pipe', 'ignore'] });
 
         const resource = createAudioResource(streamProcess.stdout, {
-            inputType: StreamType.Arbitrary
+            inputType: StreamType.Arbitrary,
+            inlineVolume: true
         });
+        resource.volume.setVolumeLogarithmic(serverQueue.volume / 100);
 
         serverQueue.player.play(resource);
         
@@ -301,6 +322,60 @@ function getStatus(guildId) {
     return queues.get(guildId);
 }
 
+function shuffleQueue(guildId) {
+    const serverQueue = queues.get(guildId);
+    if (!serverQueue || serverQueue.queue.length <= 1) return false;
+    for (let i = serverQueue.queue.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [serverQueue.queue[i], serverQueue.queue[j]] = [serverQueue.queue[j], serverQueue.queue[i]];
+    }
+    return true;
+}
+
+function removeFromQueue(guildId, index) {
+    const serverQueue = queues.get(guildId);
+    if (!serverQueue || index < 0 || index >= serverQueue.queue.length) return false;
+    serverQueue.queue.splice(index, 1);
+    return true;
+}
+
+function clearQueue(guildId) {
+    const serverQueue = queues.get(guildId);
+    if (!serverQueue) return false;
+    serverQueue.queue = [];
+    return true;
+}
+
+function setVolume(guildId, volume) {
+    const serverQueue = queues.get(guildId);
+    if (!serverQueue) return false;
+    serverQueue.volume = Math.max(1, Math.min(100, volume));
+    if (serverQueue.player && serverQueue.player._state && serverQueue.player._state.resource) {
+        const resource = serverQueue.player._state.resource;
+        if (resource.volume) {
+            resource.volume.setVolumeLogarithmic(serverQueue.volume / 100);
+        }
+    }
+    return true;
+}
+
+function setLoopMode(guildId, mode) {
+    const serverQueue = queues.get(guildId);
+    if (!serverQueue) return false;
+    serverQueue.loopMode = mode;
+    return true;
+}
+
+function leaveChannel(guildId) {
+    const serverQueue = queues.get(guildId);
+    if (!serverQueue) return false;
+    if (serverQueue.playerInterval) clearInterval(serverQueue.playerInterval);
+    serverQueue.player.stop();
+    if (serverQueue.connection) serverQueue.connection.destroy();
+    queues.delete(guildId);
+    return true;
+}
+
 module.exports = {
     initSpotify,
     enqueueAndPlay,
@@ -309,5 +384,11 @@ module.exports = {
     stopMusic,
     pauseMusic,
     resumeMusic,
-    getStatus
+    getStatus,
+    shuffleQueue,
+    removeFromQueue,
+    clearQueue,
+    setVolume,
+    setLoopMode,
+    leaveChannel
 };

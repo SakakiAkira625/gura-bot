@@ -1,6 +1,6 @@
 {
   "name": "discord-bot",
-  "version": "2.5.5",
+  "version": "2.6.0",
   "main": "src/index.js",
   "engines": {
     "node": ">=18.0.0"
@@ -32,6 +32,7 @@
     "opusscript": "^0.0.8",
     "play-dl": "^1.9.7",
     "sodium-native": "^5.1.0",
+    "spotify-url-info": "^3.3.0",
     "tesseract.js": "^6.0.1",
     "tweetnacl": "^1.0.3",
     "wikijs": "^6.4.1",

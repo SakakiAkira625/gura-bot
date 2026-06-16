@@ -23,14 +23,19 @@ module.exports = {
         }
 
         if (status.queue.length > 0) {
-            // 只顯示前 10 首避免訊息過長
-            const list = status.queue.slice(0, 10).map((song, index) => {
-                return `**${index + 1}.** ${song.title} (${song.duration})`;
-            }).join('\n');
+            let list = '';
+            let count = 0;
+            for (const song of status.queue) {
+                const titleStr = song.title.length > 60 ? song.title.substring(0, 57) + '...' : song.title;
+                const line = `**${count + 1}.** ${titleStr} (${song.duration})\n`;
+                if (list.length + line.length > 1000 || count >= 15) break; // 確保在 Discord 限制之內
+                list += line;
+                count++;
+            }
             
             embed.addFields({ 
                 name: `即將播放 (還有 ${status.queue.length} 首)`, 
-                value: list 
+                value: list || '無'
             });
         }
 
