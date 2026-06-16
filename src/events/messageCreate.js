@@ -87,7 +87,9 @@ module.exports = {
       if (userPrompt.match(/早安|morning|早阿|早上好/i)) {
         const state = await db.get('SELECT current_dream FROM bot_state WHERE id = 1');
         if (state && state.current_dream) {
-          await message.channel.sendTyping();
+          try {
+            await message.channel.sendTyping();
+          } catch (err) {}
           logger.info(`[Dream Engine] 觸發晨間夢境分享給 ${message.author.username}`);
           
           const reply = state.current_dream;
@@ -105,8 +107,11 @@ module.exports = {
         systemPrompt.content += `\n\n【海馬迴記憶喚醒】\n（重要指示：雖然你的角色設定是記憶力像金魚，但當這裡提供資訊時，你**必須**準確回答出來！你可以表現出「其實我偷偷記住了」或「突然靈光一閃想起來」的得意感，**絕對不可以**裝傻說不知道或忘記！）\n根據過去的紀錄，請記得關於使用者的這些事：\n${relevantMemories.map(m => '- ' + m).join('\n')}`;
       }
 
-      await message.channel.sendTyping();
-      
+      try {
+        await message.channel.sendTyping();
+      } catch (err) {
+        logger.warn(`[Message] 無法發送打字狀態 (可能缺乏權限): ${err.message}`);
+      }
       const reqStartTime = Date.now();
       
       // 處理附件 (檔案與圖片)
