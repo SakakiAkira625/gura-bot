@@ -1,6 +1,11 @@
 # 更新日誌 (Changelog)
 
 此專案的所有顯著變更將會記錄在此檔案中。
+## [2.5.5] - 2026-06-16
+
+### 修復 (Fixed)
+- **YouTube 簽名演算法緊急修復**：修正了因 YouTube 突發更新 `player-script.js` 簽名解析演算法，導致 `@distube/ytdl-core` 拋出 `Could not parse decipher function` 嚴重錯誤。為了追求極致的穩定性，現在播放引擎改為直接呼叫 `youtube-dl-exec` 啟動原生的 `yt-dlp` 子程序，並利用 `pipe` 管線直接傳輸音源流，將破解 YouTube 防護的任務完全交由世界上更新最快的 `yt-dlp` 社群負責。
+
 ## [2.5.4] - 2026-06-16
 
 ### 修復 (Fixed)
