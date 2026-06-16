@@ -1,6 +1,10 @@
 # 更新日誌 (Changelog)
 
 此專案的所有顯著變更將會記錄在此檔案中。
+## [2.5.2] - 2026-06-16
+
+### 升級 (Upgraded)
+- **Discord 核心套件升級**：將 `discord.js` 升級至最新版 (`v14.26.4`)，並將 `@discordjs/voice` 升級至最新版 (`v0.19.2`)，以確保符合 Discord 官方最近強制啟用的語音端對端加密 (DAVE E2EE) 協定，嘗試解決卡在 `Signalling` 的網路交握問題。
 
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 並且本專案遵循 [語意化版本控制 (Semantic Versioning)](https://semver.org/spec/v2.0.0.html)。
