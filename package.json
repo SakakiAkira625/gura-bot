@@ -1,6 +1,6 @@
 {
   "name": "discord-bot",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "main": "src/index.js",
   "engines": {
     "node": ">=18.0.0"
@@ -15,6 +15,7 @@
   "description": "",
   "dependencies": {
     "@discordjs/voice": "^0.18.0",
+    "@distube/ytdl-core": "^4.16.12",
     "axios": "^1.10.0",
     "cohere-ai": "^7.17.1",
     "discord.js": "^14.20.0",
@@ -31,6 +32,7 @@
     "tesseract.js": "^6.0.1",
     "wikijs": "^6.4.1",
     "winston": "^3.19.0",
-    "winston-daily-rotate-file": "^5.0.0"
+    "winston-daily-rotate-file": "^5.0.0",
+    "youtube-dl-exec": "^3.1.7"
   }
 }

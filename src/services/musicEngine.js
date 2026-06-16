@@ -4,9 +4,11 @@ const {
     createAudioResource, 
     AudioPlayerStatus, 
     VoiceConnectionStatus,
-    entersState
+    entersState,
+    StreamType
 } = require('@discordjs/voice');
 const play = require('play-dl');
+const ytdlExec = require('youtube-dl-exec');
 const logger = require('../utils/logger');
 
 // 每伺服器獨立的播放隊列狀態
@@ -20,7 +22,8 @@ function getServerQueue(guildId) {
             player: createAudioPlayer(),
             queue: [],
             current: null,
-            textChannel: null
+            textChannel: null,
+            isPaused: false
         });
 
         const serverQueue = queues.get(guildId);
@@ -133,6 +136,7 @@ async function enqueueAndPlay(interaction, query) {
                         title: `${track.name} - ${track.artists.map(a => a.name).join(', ')}`,
                         url: null, // Lazy loading
                         duration: `${Math.floor(track.durationInSec / 60)}:${(track.durationInSec % 60).toString().padStart(2, '0')}`,
+                        durationInSec: track.durationInSec,
                         isSpotify: true,
                         spSearchStr: `${track.name} ${track.artists.map(a => a.name).join(' ')}`
                     });
@@ -144,6 +148,7 @@ async function enqueueAndPlay(interaction, query) {
                     title: `${spData.name} - ${spData.artists.map(a => a.name).join(', ')}`,
                     url: null,
                     duration: `${Math.floor(spData.durationInSec / 60)}:${(spData.durationInSec % 60).toString().padStart(2, '0')}`,
+                    durationInSec: spData.durationInSec,
                     isSpotify: true,
                     spSearchStr: `${spData.name} ${spData.artists.map(a => a.name).join(' ')}`
                 });
@@ -156,6 +161,7 @@ async function enqueueAndPlay(interaction, query) {
                 title: ytInfo.video_details.title,
                 url: ytInfo.video_details.url,
                 duration: ytInfo.video_details.durationRaw,
+                durationInSec: ytInfo.video_details.durationInSec,
                 isSpotify: false
             });
             await interaction.editReply(`🎵 已加入隊列：**${songInfo[0].title}** (${songInfo[0].duration})`);
@@ -168,6 +174,7 @@ async function enqueueAndPlay(interaction, query) {
                 title: ytRes[0].title,
                 url: ytRes[0].url,
                 duration: ytRes[0].durationRaw,
+                durationInSec: ytRes[0].durationInSec,
                 isSpotify: false
             });
             await interaction.editReply(`🎵 已加入隊列：**${songInfo[0].title}** (${songInfo[0].duration})`);
@@ -210,10 +217,20 @@ async function playNext(guildId) {
             const ytRes = await play.search(song.spSearchStr, { limit: 1 });
             if (!ytRes || ytRes.length === 0) throw new Error('找不到對應的 YouTube 影片');
             song.url = ytRes[0].url;
+            song.durationInSec = ytRes[0].durationInSec;
         }
 
-        const stream = await play.stream(song.url);
-        const resource = createAudioResource(stream.stream, { inputType: stream.type });
+        const result = await ytdlExec(song.url, {
+            dumpSingleJson: true,
+            noWarnings: true,
+            noCallHome: true,
+            preferFreeFormats: true,
+            youtubeSkipDashManifest: true,
+            f: 'bestaudio'
+        });
+        const resource = createAudioResource(result.url, {
+            inputType: StreamType.Arbitrary
+        });
         serverQueue.player.play(resource);
         
         if (serverQueue.textChannel) {
