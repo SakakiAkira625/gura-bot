@@ -2,6 +2,7 @@ const logger = require('../utils/logger');
 const { deployCommands } = require('../utils/deployCommands');
 const modelManager = require('../services/modelManager');
 const { startDreamCronJob } = require('../services/dreamEngine');
+const { getDb } = require('../db/database');
 
 module.exports = {
   name: 'clientReady',
@@ -10,6 +11,9 @@ module.exports = {
     logger.info(`Gura 已上線：${client.user.tag}`);
     await deployCommands(client.user.id, process.env.DISCORD_TOKEN);
     
+    // 預熱資料庫連線 (避免第一次指令超時)
+    await getDb();
+
     // 同步模型清單並做初步測試
     await modelManager.syncModels();
 

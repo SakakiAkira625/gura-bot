@@ -2,26 +2,27 @@ const mysql = require('mysql2/promise');
 const logger = require('../utils/logger');
 const { DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME } = require('../config/env');
 
-let poolPromise = null;
+let dbPromise = null;
 
 async function getDb() {
-  if (poolPromise) return poolPromise;
+  if (dbPromise) return dbPromise;
 
-  try {
-    const pool = mysql.createPool({
-      host: DB_HOST,
-      port: DB_PORT,
-      user: DB_USER,
-      password: DB_PASSWORD,
-      database: DB_NAME,
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0
-    });
+  dbPromise = (async () => {
+    try {
+      const pool = mysql.createPool({
+        host: DB_HOST,
+        port: DB_PORT,
+        user: DB_USER,
+        password: DB_PASSWORD,
+        database: DB_NAME,
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0
+      });
 
-    // Test connection
-    await pool.query('SELECT 1');
-    logger.info('成功連接到 MySQL 資料庫');
+      // Test connection
+      await pool.query('SELECT 1');
+      logger.info('成功連接到 MySQL 資料庫');
 
     // 建立使用者好感度與等級表
     await pool.query(`
@@ -108,12 +109,14 @@ async function getDb() {
       return rows;
     };
 
-    poolPromise = pool;
-    return poolPromise;
+    return pool;
   } catch (err) {
+    dbPromise = null;
     logger.error('MySQL 資料庫初始化失敗', err);
     throw err;
   }
+  })();
+  return dbPromise;
 }
 
 module.exports = {

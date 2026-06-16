@@ -50,21 +50,21 @@ async function initSpotify() {
                 spotify: {
                     client_id: process.env.SPOTIFY_CLIENT_ID,
                     client_secret: process.env.SPOTIFY_CLIENT_SECRET,
-                    market: 'US',
+                    market: 'TW',
                     refresh_token: ''
                 }
             });
-            logger.info('[Music] Spotify API token initialized via ENV.');
+            logger.info('[Music] Spotify API token initialized via ENV (Market: TW).');
         } else {
             await play.setToken({
                 spotify: {
                     client_id: await play.getFreeClientID(),
                     client_secret: '',
-                    market: 'US',
+                    market: 'TW',
                     refresh_token: ''
                 }
             });
-            logger.info('[Music] Spotify API initialized with FREE Client ID.');
+            logger.info('[Music] Spotify API initialized with FREE Client ID (Market: TW).');
         }
     } catch (e) {
         logger.error('[Music] Failed to init Spotify token:', e.message);
