@@ -1,6 +1,11 @@
 # 更新日誌 (Changelog)
 
 此專案的所有顯著變更將會記錄在此檔案中。
+## [2.5.4] - 2026-06-16
+
+### 修復 (Fixed)
+- **GCP IP 遭 YouTube 阻擋問題修復**：修正了 `play-dl` 由於 GCP 伺服器 IP 被 YouTube 防火牆攔截，導致回傳 403 Forbidden 網頁進而觸發 `Invalid URL` 的錯誤。改採 `@distube/ytdl-core` 負責串流下載，其內部維護的繞過簽名演算法能有效對抗雲端 IP 封鎖。
+
 ## [2.5.3] - 2026-06-16
 
 ### 修復 (Fixed)

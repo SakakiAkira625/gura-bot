@@ -8,7 +8,7 @@ const {
     StreamType
 } = require('@discordjs/voice');
 const play = require('play-dl');
-const ytdlExec = require('youtube-dl-exec');
+const ytdl = require('@distube/ytdl-core');
 const logger = require('../utils/logger');
 
 // 每伺服器獨立的播放隊列狀態
@@ -235,10 +235,14 @@ async function playNext(guildId) {
             song.durationInSec = ytRes[0].durationInSec;
         }
 
-        // 取得真實的音訊串流 (使用 play-dl)
-        const stream = await play.stream(song.url);
-        const resource = createAudioResource(stream.stream, {
-            inputType: stream.type
+        // 取得真實的音訊串流 (使用 @distube/ytdl-core 防禦 GCP 封鎖)
+        const stream = ytdl(song.url, {
+            filter: 'audioonly',
+            quality: 'highestaudio',
+            highWaterMark: 1 << 25
+        });
+        const resource = createAudioResource(stream, {
+            inputType: StreamType.Arbitrary
         });
         serverQueue.player.play(resource);
         
