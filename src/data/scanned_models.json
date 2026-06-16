@@ -1,7 +1,5 @@
 {
   "CODE": [
-    "meta/llama-3.3-70b-instruct",
-    "meta/llama-3.1-8b-instruct",
     "nvidia/nemotron-3.5-content-safety",
     "nvidia/llama-3.3-nemotron-super-49b-v1",
     "google/diffusiongemma-26b-a4b-it",
@@ -31,8 +29,10 @@
     "google/gemma-3n-e2b-it",
     "mistralai/mixtral-8x7b-instruct-v0.1",
     "upstage/solar-10.7b-instruct",
+    "meta/llama-3.3-70b-instruct",
     "meta/llama-3.2-1b-instruct",
     "nvidia/nemotron-3-content-safety",
+    "meta/llama-3.1-8b-instruct",
     "stepfun-ai/step-3.7-flash",
     "meta/llama-3.2-90b-vision-instruct",
     "google/gemma-2-2b-it",
@@ -51,7 +51,6 @@
     "z-ai/glm-5.1"
   ],
   "CHAT": [
-    "meta/llama-3.1-8b-instruct",
     "moonshotai/kimi-k2.6",
     "stepfun-ai/step-3.5-flash",
     "nvidia/nemotron-3-nano-30b-a3b",
@@ -87,6 +86,7 @@
     "google/gemma-3n-e4b-it",
     "nvidia/llama-3.1-nemoguard-8b-topic-control",
     "minimaxai/minimax-m2.7",
+    "meta/llama-3.1-8b-instruct",
     "openai/gpt-oss-20b",
     "nvidia/nemotron-content-safety-reasoning-4b",
     "mistralai/mistral-medium-3.5-128b",
@@ -100,9 +100,9 @@
     "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
   ],
   "VISION": [
-    "meta/llama-3.2-90b-vision-instruct",
-    "meta/llama-3.2-11b-vision-instruct",
     "nvidia/llama-3.1-nemotron-nano-vl-8b-v1",
-    "nvidia/nemotron-nano-12b-v2-vl"
+    "meta/llama-3.2-11b-vision-instruct",
+    "nvidia/nemotron-nano-12b-v2-vl",
+    "meta/llama-3.2-90b-vision-instruct"
   ]
 }

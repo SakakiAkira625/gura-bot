@@ -5,6 +5,12 @@
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 並且本專案遵循 [語意化版本控制 (Semantic Versioning)](https://semver.org/spec/v2.0.0.html)。
 
+## [2.4.0] - 2026-06-16
+
+### 新增 (Added)
+- **Spotify 歌單/專輯完美支援 (Lazy Loading)**：大幅優化音樂播放器底層。現在丟入包含數百首歌的 Spotify 歌單連結時，Gura 會在一秒內將所有曲目加入隊列，並在「要播到該首歌的前一刻」才去 YouTube 抓取音源，徹底解決超大歌單導致指令超時與 API 被鎖的問題。
+- **進階播放控制指令**：新增了 `/queue` (查看歌單)、`/pause` (暫停播放)、`/resume` (恢復播放)、`/nowplaying` (查看當前播放歌曲)。
+
 ## [2.3.0] - 2026-06-16
 
 ### 新增 (Added)

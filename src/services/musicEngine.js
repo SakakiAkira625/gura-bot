@@ -86,6 +86,7 @@ async function enqueueAndPlay(interaction, query) {
 
     if (!serverQueue.connection) {
         try {
+            logger.info(`[Music] 嘗試加入語音頻道: ${voiceChannel.id} (Guild: ${guildId})`);
             serverQueue.connection = joinVoiceChannel({
                 channelId: voiceChannel.id,
                 guildId: guildId,
@@ -93,14 +94,27 @@ async function enqueueAndPlay(interaction, query) {
                 selfDeaf: true,
                 selfMute: false
             });
+            logger.info(`[Music] 成功發送 joinVoiceChannel 請求`);
+
+            serverQueue.connection.on(VoiceConnectionStatus.Signalling, () => {
+                logger.info(`[Music] Voice connection state: Signalling`);
+            });
+            serverQueue.connection.on(VoiceConnectionStatus.Connecting, () => {
+                logger.info(`[Music] Voice connection state: Connecting`);
+            });
+            serverQueue.connection.on(VoiceConnectionStatus.Ready, () => {
+                logger.info(`[Music] Voice connection state: Ready`);
+            });
 
             serverQueue.connection.on(VoiceConnectionStatus.Disconnected, async () => {
+                logger.warn(`[Music] Voice connection state: Disconnected`);
                 try {
                     await Promise.race([
                         entersState(serverQueue.connection, VoiceConnectionStatus.Signalling, 5_000),
                         entersState(serverQueue.connection, VoiceConnectionStatus.Connecting, 5_000),
                     ]);
                 } catch (error) {
+                    logger.error(`[Music] Voice connection failed to reconnect, destroying...`);
                     serverQueue.connection.destroy();
                     queues.delete(guildId);
                 }
@@ -108,6 +122,7 @@ async function enqueueAndPlay(interaction, query) {
 
             serverQueue.connection.subscribe(serverQueue.player);
         } catch (e) {
+            logger.error(`[Music] joinVoiceChannel throw error:`, e);
             queues.delete(guildId);
             return interaction.editReply(`❌ 無法連接語音頻道: ${e.message}`);
         }
