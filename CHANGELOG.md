@@ -1,6 +1,11 @@
 # 更新日誌 (Changelog)
 
 此專案的所有顯著變更將會記錄在此檔案中。
+## [2.6.1] - 2026-06-17
+
+### 修復 (Fixed)
+- **YouTube 播放清單解析崩潰**：修復了因 YouTube 介面改版導致 `play-dl` 無法取得 `browseId` 或 `contents` 進而引發 `Cannot read properties of undefined` 的致命錯誤。現在播放清單的解析工作也一併轉交給了原生 `yt-dlp` (透過 `youtube-dl-exec`) 處理，確保清單擷取的穩定性。
+
 ## [2.6.0] - 2026-06-16
 
 ### 新增 (Added)

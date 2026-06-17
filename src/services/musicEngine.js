@@ -185,20 +185,29 @@ async function enqueueAndPlay(interaction, query) {
             await interaction.editReply(`🎵 已加入隊列：**${songInfo[0].title}** (${songInfo[0].duration})`);
         } 
         else if (play.yt_validate(query) === 'playlist') {
-            const playlist = await play.playlist_info(query, { incomplete: true });
-            const videos = await playlist.all_videos();
+            const playlist = await ytdlExec(query, {
+                dumpSingleJson: true,
+                flatPlaylist: true
+            });
+            const videos = playlist.entries || [];
+            
             for (const video of videos) {
-                if (video.title) {
+                if (video.title && video.title !== '[Deleted video]' && video.title !== '[Private video]') {
+                    const durationInSec = video.duration || 0;
                     songInfo.push({
                         title: video.title,
                         url: video.url,
-                        duration: video.durationRaw,
-                        durationInSec: video.durationInSec,
+                        duration: `${Math.floor(durationInSec / 60)}:${(durationInSec % 60).toString().padStart(2, '0')}`,
+                        durationInSec: durationInSec,
                         isSpotify: false
                     });
                 }
             }
-            await interaction.editReply(`🎵 已將 YouTube 播放清單 **${playlist.title}** 中的 ${videos.length} 首歌曲加入隊列！`);
+            if (videos.length > 0) {
+                await interaction.editReply(`🎵 已將 YouTube 播放清單 **${playlist.title}** 中的 ${videos.length} 首歌曲加入隊列！`);
+            } else {
+                throw new Error('無法解析該播放清單，或該清單為空/私人清單。');
+            }
         }
         else {
             // Keyword search
