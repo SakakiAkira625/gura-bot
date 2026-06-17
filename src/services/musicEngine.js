@@ -268,10 +268,9 @@ async function playNext(guildId) {
             output: '-',
             quiet: true,
             format: 'bestaudio/best',
-            limitRate: '1M',
+            limitRate: '5M', // 提高下載速率上限以應對高音質
             noWarnings: true,
-            noCallHome: true,
-            youtubeSkipDashManifest: true
+            noCallHome: true
         }, { stdio: ['ignore', 'pipe', 'ignore'] });
 
         const resource = createAudioResource(streamProcess.stdout, {
