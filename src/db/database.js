@@ -30,9 +30,19 @@ async function getDb() {
         id VARCHAR(255) PRIMARY KEY,
         xp INT DEFAULT 0,
         level INT DEFAULT 1,
-        last_message_at BIGINT DEFAULT 0
+        last_message_at BIGINT DEFAULT 0,
+        last_reply_at BIGINT DEFAULT 0,
+        cooldown_until BIGINT DEFAULT 0
       )
     `);
+
+    try {
+      await pool.query('ALTER TABLE users ADD COLUMN last_reply_at BIGINT DEFAULT 0');
+    } catch (err) { if (err.code !== 'ER_DUP_FIELDNAME') logger.warn(err); }
+
+    try {
+      await pool.query('ALTER TABLE users ADD COLUMN cooldown_until BIGINT DEFAULT 0');
+    } catch (err) { if (err.code !== 'ER_DUP_FIELDNAME') logger.warn(err); }
 
     // 建立對話紀錄歷史表
     await pool.query(`
@@ -80,9 +90,14 @@ async function getDb() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS guild_settings (
         guild_id VARCHAR(255) PRIMARY KEY,
-        default_lang VARCHAR(50) DEFAULT 'cmn'
+        default_lang VARCHAR(50) DEFAULT 'cmn',
+        reply_cooldown INT DEFAULT 0
       )
     `);
+
+    try {
+      await pool.query('ALTER TABLE guild_settings ADD COLUMN reply_cooldown INT DEFAULT 0');
+    } catch (err) { if (err.code !== 'ER_DUP_FIELDNAME') logger.warn(err); }
 
     // 建立指令允許頻道表
     await pool.query(`

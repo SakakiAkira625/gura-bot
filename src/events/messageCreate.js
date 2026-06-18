@@ -43,12 +43,13 @@ module.exports = {
     const now = Date.now();
 
     // 🌟 功能一：好感度與等級系統 (Shrimp Level System)
+    let user = null;
     try {
-      let user = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
+      user = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
       
       if (!user) {
         await db.run('INSERT INTO users (id, xp, level, last_message_at) VALUES (?, 0, 1, ?)', [userId, now]);
-        user = { id: userId, xp: 0, level: 1, last_message_at: now };
+        user = { id: userId, xp: 0, level: 1, last_message_at: now, last_reply_at: 0, cooldown_until: 0 };
       }
 
       // 60秒冷卻時間，避免洗頻刷經驗
@@ -68,6 +69,24 @@ module.exports = {
       }
     } catch (err) {
       logger.error('更新使用者等級失敗', err);
+    }
+
+    // 🌟 功能一點五：檢查 AI 回覆冷卻與懲罰
+    if (user) {
+      // 1. 檢查是否在強制冷卻懲罰中
+      if (user.cooldown_until && user.cooldown_until > now) {
+        return; // 懲罰中，直接無視
+      }
+
+      // 2. 檢查是否在全域冷卻中
+      if (message.guildId) {
+        const gs = await db.get('SELECT reply_cooldown FROM guild_settings WHERE guild_id = ?', [message.guildId]);
+        if (gs && gs.reply_cooldown > 0 && user.last_reply_at) {
+          if (now - user.last_reply_at < gs.reply_cooldown * 1000) {
+            return; // 全域冷卻中，直接無視
+          }
+        }
+      }
     }
 
     // 🌟 功能二：對話記憶永久化 (Persistent Memory)
@@ -246,6 +265,9 @@ module.exports = {
 
       // 對話結束後，背景非同步執行海馬迴總結與沉澱
       summarizeAndStoreMemory(userId, channelId).catch(e => logger.error(`[海馬迴背景處理失敗] ${e.message}`));
+
+      // 更新使用者的最後 AI 回覆時間
+      await db.run('UPDATE users SET last_reply_at = ? WHERE id = ?', [Date.now(), userId]);
 
     } catch (error) {
       logger.error('Error handling message:', error);
