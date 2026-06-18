@@ -91,12 +91,27 @@ async function getDb() {
       CREATE TABLE IF NOT EXISTS guild_settings (
         guild_id VARCHAR(255) PRIMARY KEY,
         default_lang VARCHAR(50) DEFAULT 'cmn',
-        reply_cooldown INT DEFAULT 0
+        reply_cooldown INT DEFAULT 0,
+        tag_limit_role_id VARCHAR(255) DEFAULT NULL,
+        tag_limit_hours INT DEFAULT 3,
+        tag_disabled_until BIGINT DEFAULT 0
       )
     `);
 
     try {
       await pool.query('ALTER TABLE guild_settings ADD COLUMN reply_cooldown INT DEFAULT 0');
+    } catch (err) { if (err.code !== 'ER_DUP_FIELDNAME') logger.warn(err); }
+
+    try {
+      await pool.query('ALTER TABLE guild_settings ADD COLUMN tag_limit_role_id VARCHAR(255) DEFAULT NULL');
+    } catch (err) { if (err.code !== 'ER_DUP_FIELDNAME') logger.warn(err); }
+
+    try {
+      await pool.query('ALTER TABLE guild_settings ADD COLUMN tag_limit_hours INT DEFAULT 3');
+    } catch (err) { if (err.code !== 'ER_DUP_FIELDNAME') logger.warn(err); }
+
+    try {
+      await pool.query('ALTER TABLE guild_settings ADD COLUMN tag_disabled_until BIGINT DEFAULT 0');
     } catch (err) { if (err.code !== 'ER_DUP_FIELDNAME') logger.warn(err); }
 
     // 建立指令允許頻道表

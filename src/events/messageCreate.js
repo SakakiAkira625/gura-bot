@@ -1,3 +1,4 @@
+const { PermissionFlagsBits } = require('discord.js');
 const { franc } = require('franc');
 const { detectChinese } = require('../utils/helpers');
 const { getSystemPromptByLang, getPersonaErrorReply } = require('../data/persona');
@@ -41,6 +42,34 @@ module.exports = {
       }
     }
     const now = Date.now();
+
+    // 🌟 檢查身分組標註限制 (Tag Limit)
+    if (message.guildId) {
+      try {
+        const gs = await db.get('SELECT tag_limit_role_id, tag_limit_hours FROM guild_settings WHERE guild_id = ?', [message.guildId]);
+        if (gs && gs.tag_limit_role_id && message.mentions.roles.has(gs.tag_limit_role_id)) {
+          // 如果標註了受保護身分組，檢查權限
+          const member = message.member;
+          const hasPerm = member && (member.permissions.has(PermissionFlagsBits.Administrator) || member.permissions.has(PermissionFlagsBits.ManageRoles));
+          
+          if (!hasPerm) {
+            const targetRole = message.guild.roles.cache.get(gs.tag_limit_role_id);
+            if (targetRole && targetRole.mentionable) {
+              const disabledUntil = now + (gs.tag_limit_hours * 60 * 60 * 1000);
+              await db.run('UPDATE guild_settings SET tag_disabled_until = ? WHERE guild_id = ?', [disabledUntil, message.guildId]);
+              await targetRole.setMentionable(false, 'User triggered tag limit');
+              const untilDate = new Date(disabledUntil).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+              logger.info(`用戶 ${message.author.username} (${message.author.id}) 標註了保護身分組 ${targetRole.name}，已關閉 mentionable 直到 ${untilDate}。`);
+              
+              const reply = await message.reply(`🚨 **警告**：你標註了受保護的身分組！此身分組已暫時關閉標註功能，直到 \`${untilDate}\` 為止。`);
+              setTimeout(() => reply.delete().catch(() => {}), 5000);
+            }
+          }
+        }
+      } catch (err) {
+        logger.error('[Tag Limit Check Error]', err);
+      }
+    }
 
     // 🌟 功能一：好感度與等級系統 (Shrimp Level System)
     let user = null;
