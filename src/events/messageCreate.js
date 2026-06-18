@@ -75,6 +75,10 @@ module.exports = {
     if (user) {
       // 1. 檢查是否在強制冷卻懲罰中
       if (user.cooldown_until && user.cooldown_until > now) {
+        try {
+          const reply = await message.reply('a... 不要吵啦！Gura 現在不想理你了！🦈💢 *(被關入冷卻監獄中)*');
+          setTimeout(() => reply.delete().catch(() => {}), 5000);
+        } catch (e) { /* ignore */ }
         return; // 懲罰中，直接無視
       }
 
@@ -83,6 +87,10 @@ module.exports = {
         const gs = await db.get('SELECT reply_cooldown FROM guild_settings WHERE guild_id = ?', [message.guildId]);
         if (gs && gs.reply_cooldown > 0 && user.last_reply_at) {
           if (now - user.last_reply_at < gs.reply_cooldown * 1000) {
+            try {
+              const reply = await message.reply('a... 讓 Gura 喘口氣好嗎！游太快會累的！🦈💦 *(冷卻中)*');
+              setTimeout(() => reply.delete().catch(() => {}), 5000);
+            } catch (e) { /* ignore */ }
             return; // 全域冷卻中，直接無視
           }
         }
