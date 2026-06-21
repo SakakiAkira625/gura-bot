@@ -132,8 +132,14 @@ module.exports = {
       const userPromptWithName = `[${message.author.username}]: ${userPrompt}`;
 
       // 讀取最近的 10 筆對話紀錄 (取得先前的歷史，不包含當前訊息)
-      const rawHistory = await db.all('SELECT role, content FROM history WHERE channel_id = ? ORDER BY timestamp DESC LIMIT 10', [channelId]);
-      const history = rawHistory.reverse(); // 將時間排序轉正
+      const rawHistory = await db.all('SELECT role, content, timestamp FROM history WHERE channel_id = ? ORDER BY timestamp DESC LIMIT 10', [channelId]);
+      const history = rawHistory.reverse().map(row => {
+        const timeStr = new Date(row.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Taipei' });
+        return {
+          role: row.role,
+          content: `[${timeStr}] ${row.content}`
+        };
+      });
 
       // 儲存使用者的當前對話
       await db.run('INSERT INTO history (user_id, channel_id, role, content, timestamp) VALUES (?, ?, ?, ?, ?)', [userId, channelId, 'user', userPromptWithName, now]);
@@ -183,7 +189,8 @@ module.exports = {
       const reqStartTime = Date.now();
       
       // 處理附件 (檔案與圖片)
-      let finalUserPrompt = userPromptWithName;
+      const currentTimeStr = new Date(now).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Taipei' });
+      let finalUserPrompt = `[${currentTimeStr}] ${userPromptWithName}`;
       let finalPromptPayload = null; // 放 OpenAI Vision Array
       let forceIntent = null;
 
