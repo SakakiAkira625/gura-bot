@@ -55,5 +55,14 @@ for (const file of eventFiles) {
 // Log errors from the client
 client.on('error', (error) => logger.error('Discord Client Error:', error));
 
+// 捕捉未預期的全域錯誤，防止機器人崩潰
+process.on('unhandledRejection', error => {
+  logger.error('Unhandled promise rejection:', error);
+});
+
+process.on('uncaughtException', error => {
+  logger.error('Uncaught Exception:', error);
+});
+
 // Connect
 client.login(DISCORD_TOKEN);
