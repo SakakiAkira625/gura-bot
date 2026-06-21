@@ -2,7 +2,8 @@ module.exports = {
   apps: [{
     name: "gura-bot",
     script: "./src/index.js",
-    watch: false,
+    watch: true,
+    ignore_watch: ["node_modules", "logs", ".git", "*.log", "data", "scratch", "tests"],
     max_memory_restart: "800M",
     env: {
       NODE_ENV: "production",
