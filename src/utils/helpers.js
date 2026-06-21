@@ -1,12 +1,18 @@
 // ==================== 時間工具 ====================
 function getNowTimeTW() {
   const now = new Date();
-  return now.toLocaleTimeString("zh-TW", {
+  const timeString = now.toLocaleString("zh-TW", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
     hour12: false,
     timeZone: "Asia/Taipei",
   });
+  return `${timeString} (Asia/Taipei 台灣時間)`;
 }
 
 // ==================== 語言處理 ====================
