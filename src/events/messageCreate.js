@@ -50,7 +50,7 @@ module.exports = {
         if (gs && gs.tag_limit_role_id && message.mentions.roles.has(gs.tag_limit_role_id)) {
           // 如果標註了受保護身分組，檢查權限
           const member = message.member;
-          const hasPerm = member && (member.permissions.has(PermissionFlagsBits.Administrator) || member.permissions.has(PermissionFlagsBits.ManageRoles));
+          const hasPerm = member && member.permissions.has(PermissionFlagsBits.Administrator);
           
           if (!hasPerm) {
             const targetRole = message.guild.roles.cache.get(gs.tag_limit_role_id);
