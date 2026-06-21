@@ -1,6 +1,11 @@
 # 更新日誌 (Changelog)
 
 此專案的所有顯著變更將會記錄在此檔案中。
+## [2.9.4] - 2026-06-21
+
+### 變更 (Changed)
+- **PM2 設定優化**：將 `ecosystem.config.js` 中的 `watch` 模式設為 `true`，並設定 `ignore_watch` (排除 `logs`、`node_modules` 等目錄) 確保檔案一有更新就能自動重啟，同時避免被 Log 變化觸發無限重啟。
+
 ## [2.9.3] - 2026-06-21
 
 ### 修正 (Fixed)
