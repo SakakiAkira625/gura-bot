@@ -1,6 +1,16 @@
 # 更新日誌 (Changelog)
 
 此專案的所有顯著變更將會記錄在此檔案中。
+## [2.9.6] - 2026-06-23
+
+### 修正 (Fixed)
+- **PM2 Watch 優化**：進一步限縮 `pm2` 的 `watch` 範圍至僅監聽 `src`、`.env` 與 `package.json`，並確實排除 `src/data` (動態寫入的 JSON)。徹底解決自動抓取模型清單時的檔案變更引發重啟死迴圈的問題。
+
+## [2.9.5] - 2026-06-23
+
+### 修正 (Fixed)
+- **PM2 無限重啟修正**：修正 `ecosystem.config.js` 的 `ignore_watch` 路徑設定，將原本的 `data` 更改為 `src/data`，避免開機時 Model Manager 更新 `models.json` 觸發 PM2 的自動重啟迴圈。
+
 ## [2.9.4] - 2026-06-21
 
 ### 變更 (Changed)
