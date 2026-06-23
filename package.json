@@ -1,6 +1,6 @@
 {
   "name": "discord-bot",
-  "version": "2.9.4",
+  "version": "2.9.6",
   "main": "src/index.js",
   "engines": {
     "node": ">=18.0.0"
