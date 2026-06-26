@@ -2,6 +2,13 @@
 
 此專案的所有顯著變更將會記錄在此檔案中。
 
+## [2.9.9] - 2026-06-27
+
+### 修正 (Fixed)
+- **安全稽核漏洞修復 (NVIDIA API Rate Limit)**：調整模型背景掃描 `modelScanner.js` 的批次設定（併發度降至 2，批次延遲增至 3 秒），降低衝擊 NVIDIA NIM API 40 RPM 限制的機率。
+- **安全稽核漏洞修復 (音樂播放子程序錯誤處理)**：在 `musicEngine.js` 的 `ytdlExec` 子程序掛載 `error` 事件監聽器，確保下載串流異常終止時能正確捕獲並寫入日誌。
+- **程式碼異味清理 (Unused Imports)**：移除 `src/index.js` 中引入但未使用到的 `execSync` 模組。
+
 ## [2.9.8] - 2026-06-27
 
 ### 修正 (Fixed)

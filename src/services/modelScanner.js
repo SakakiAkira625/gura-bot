@@ -67,8 +67,8 @@ async function scanAndSave() {
       VISION: []
     };
 
-    // 批次處理，每次 5 個
-    const batchSize = 5;
+    // 批次處理，每次 2 個 (減輕 NVIDIA NIM API 40 RPM 限制的壓力)
+    const batchSize = 2;
     for (let i = 0; i < filteredModels.length; i += batchSize) {
       const batch = filteredModels.slice(i, i + batchSize);
       
@@ -109,7 +109,7 @@ async function scanAndSave() {
 
       // 批次間隔稍作休息，避免撞到每分鐘請求限制 (40 RPM)
       if (i + batchSize < filteredModels.length) {
-        await delay(1500); 
+        await delay(3000); 
       }
     }
 

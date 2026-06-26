@@ -1,5 +1,4 @@
 const { Client, GatewayIntentBits } = require('discord.js');
-const { execSync } = require('child_process');
 const fs = require('fs');
 
 

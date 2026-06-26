@@ -273,6 +273,8 @@ async function playNext(guildId) {
             noCallHome: true
         }, { stdio: ['ignore', 'pipe', 'ignore'] });
 
+        streamProcess.on('error', err => logger.error(`[Music Engine] yt-dlp child process error for ${song.title}: ${err.message}`));
+
         const resource = createAudioResource(streamProcess.stdout, {
             inputType: StreamType.Arbitrary,
             inlineVolume: true
