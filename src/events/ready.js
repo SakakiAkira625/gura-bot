@@ -5,7 +5,7 @@ const { startDreamCronJob } = require('../services/dreamEngine');
 const { getDb } = require('../db/database');
 
 module.exports = {
-  name: 'ready',
+  name: 'clientReady',
   once: true,
   async execute(client) {
     logger.info(`Gura 已上線：${client.user.tag}`);

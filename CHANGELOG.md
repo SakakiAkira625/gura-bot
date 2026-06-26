@@ -2,6 +2,13 @@
 
 此專案的所有顯著變更將會記錄在此檔案中。
 
+## [2.9.8] - 2026-06-27
+
+### 修正 (Fixed)
+- **Discord.js ready 事件棄用警報修正**：將 `ready` 事件監聽器更名為 `clientReady`，以完全相容 Discord.js v14 與 v15 並消除主控台的棄用警報。
+- **安全漏洞修復 (SSRF)**：在 `downloadTextFile` 中限制僅允許從 Discord 官方 CDN 域名下載附件，防止潛在的 Server-Side Request Forgery 攻擊。
+- **安全漏洞修復 (API Rate Limit)**：針對被關入「冷卻監獄」用戶的警告回應加上 30 秒記憶體內冷卻鎖定，避免用戶惡意洗頻觸發 Discord API Rate Limit。
+
 ## [2.9.7] - 2026-06-27
 
 ### 修正 (Fixed)

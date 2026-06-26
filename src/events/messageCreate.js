@@ -11,6 +11,9 @@ const logger = require('../utils/logger');
 const { getMessage } = require('../utils/i18n');
 const { getDb } = require('../db/database');
 
+// 記憶體中記錄使用者最後收到冷卻監獄警告的時間，防止 Discord API 限流
+const jailWarningCooldowns = new Map();
+
 /**
  * 清理 AI 回覆中可能被模仿生出的時間戳或角色名稱前綴
  */
@@ -120,10 +123,15 @@ module.exports = {
     if (user) {
       // 1. 檢查是否在強制冷卻懲罰中
       if (user.cooldown_until && user.cooldown_until > now) {
-        try {
-          const reply = await message.reply('a... 不要吵啦！Gura 現在不想理你了！🦈💢 *(被關入冷卻監獄中)*');
-          setTimeout(() => reply.delete().catch(() => {}), 5000);
-        } catch (e) { /* ignore */ }
+        const lastWarn = jailWarningCooldowns.get(userId) || 0;
+        // 每 30 秒最多警告一次，其餘直接無視不回覆
+        if (now - lastWarn > 30000) {
+          jailWarningCooldowns.set(userId, now);
+          try {
+            const reply = await message.reply('a... 不要吵啦！Gura 現在不想理你了！🦈💢 *(被關入冷卻監獄中)*');
+            setTimeout(() => reply.delete().catch(() => {}), 5000);
+          } catch (e) { /* ignore */ }
+        }
         return; // 懲罰中，直接無視
       }
 

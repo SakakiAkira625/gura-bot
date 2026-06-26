@@ -8,6 +8,11 @@ const logger = require('./logger');
  */
 async function downloadTextFile(url) {
   try {
+    const parsedUrl = new URL(url);
+    const allowedDomains = ['cdn.discordapp.com', 'media.discordapp.net', 'cdn.discord.com'];
+    if (!allowedDomains.includes(parsedUrl.hostname)) {
+      throw new Error(`SSRF 防護：拒絕從非法網域 ${parsedUrl.hostname} 下載檔案`);
+    }
     const response = await axios.get(url, { responseType: 'text' });
     // 預防檔案過大，最多只截取前 5000 個字元，避免塞爆 Token
     const textData = response.data;
