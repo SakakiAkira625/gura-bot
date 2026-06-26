@@ -1,7 +1,10 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const cron = require('node-cron');
 const knowledgeRepository = require('../db/repositories/KnowledgeRepository');
 const commandChannelRepository = require('../db/repositories/CommandChannelRepository');
+const guildSettingsRepository = require('../db/repositories/GuildSettingsRepository');
 const guildScanner = require('../services/guildScanner');
+const scheduleScanner = require('../services/scheduleScanner');
 const logger = require('../utils/logger');
 
 module.exports = {
@@ -40,7 +43,32 @@ module.exports = {
         .addChannelOption(option =>
           option.setName('channel')
             .setDescription('目標頻道 (預設為當前頻道)')
-            .setRequired(false))),
+            .setRequired(false)))
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('exclude')
+        .setDescription('管理海巡排除頻道名單')
+        .addStringOption(option =>
+          option.setName('action')
+            .setDescription('操作動作 (新增、移除或查看)')
+            .setRequired(true)
+            .addChoices(
+              { name: '新增排除 (Add)', value: 'add' },
+              { name: '移除排除 (Remove)', value: 'remove' },
+              { name: '查看列表 (List)', value: 'list' }
+            ))
+        .addChannelOption(option =>
+          option.setName('channel')
+            .setDescription('目標頻道 (查看列表時可忽略)')
+            .setRequired(false)))
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('schedule')
+        .setDescription('設定定時自動海巡排程 (Crontab 格式)')
+        .addStringOption(option =>
+          option.setName('cron')
+            .setDescription('Cron 表達式 (例如 "0 4 * * 0" 代表每週日凌晨 4 點) 或輸入 "disable" 停用')
+            .setRequired(true))),
   async execute(interaction) {
     const subcommand = interaction.options.getSubcommand();
     const guildId = interaction.guildId;
@@ -56,6 +84,10 @@ module.exports = {
         const scope = interaction.options.getString('scope');
         let targetChannels = [];
 
+        // 取得排除名單
+        const gs = await guildSettingsRepository.get(guildId);
+        const excludedIds = JSON.parse(gs && gs.knowledge_exclude ? gs.knowledge_exclude : '[]');
+
         if (scope === 'guild') {
           // 取得白名單頻道
           const whitelisted = await commandChannelRepository.getAllowed(guildId);
@@ -64,11 +96,21 @@ module.exports = {
               .map(row => interaction.guild.channels.cache.get(row.channel_id))
               .filter(c => c && c.isTextBased() && c.viewable);
           } else {
-            // 否則取前 5 個可存取的文字頻道
+            // 否則取所有文字頻道
             targetChannels = Array.from(interaction.guild.channels.cache.values())
-              .filter(c => c.isTextBased() && c.viewable)
-              .slice(0, 5);
+              .filter(c => c.isTextBased() && c.viewable);
           }
+          
+          // 過濾排除頻道
+          targetChannels = targetChannels.filter(c => !excludedIds.includes(c.id));
+          // 限制最多掃描 5 個活躍頻道
+          targetChannels.sort((a, b) => {
+            const idA = a.lastMessageId || '0';
+            const idB = b.lastMessageId || '0';
+            return idB.localeCompare(idA);
+          });
+          targetChannels = targetChannels.slice(0, 5);
+
         } else {
           // 單一頻道
           const channelOption = interaction.options.getChannel('channel');
@@ -77,11 +119,16 @@ module.exports = {
           if (!targetChannel.isTextBased()) {
             return interaction.followUp({ content: '❌ 只能對文字頻道進行海巡喔！' });
           }
+          
+          if (excludedIds.includes(targetChannel.id)) {
+            return interaction.followUp({ content: `⚠️ 警告：<#${targetChannel.id}> 目前在海巡排除名單中，但因為你指定掃描此頻道，Gura 仍會執行海巡！` });
+          }
+
           targetChannels = [targetChannel];
         }
 
         if (targetChannels.length === 0) {
-          return interaction.followUp({ content: '❌ 找不到任何可海巡的文字頻道！' });
+          return interaction.followUp({ content: '❌ 找不到任何可海巡的文字頻道 (或已被排除名單全部過濾)！' });
         }
 
         // 檢查是否有頻道正在掃描中
@@ -209,6 +256,63 @@ module.exports = {
         }
 
         return interaction.followUp({ content: replyContent });
+
+      } else if (subcommand === 'exclude') {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        
+        const action = interaction.options.getString('action');
+        const targetChannel = interaction.options.getChannel('channel');
+
+        const gs = await guildSettingsRepository.get(guildId);
+        let excluded = JSON.parse(gs && gs.knowledge_exclude ? gs.knowledge_exclude : '[]');
+
+        if (action === 'add') {
+          if (!targetChannel) {
+            return interaction.followUp({ content: '❌ 請指定要排除的文字頻道！' });
+          }
+          if (!targetChannel.isTextBased()) {
+            return interaction.followUp({ content: '❌ 只能排除文字頻道喔！' });
+          }
+          if (!excluded.includes(targetChannel.id)) {
+            excluded.push(targetChannel.id);
+            await guildSettingsRepository.updateKnowledgeExclude(guildId, excluded);
+          }
+          return interaction.followUp({ content: `✅ 沒問題！我記住了，以後定時海巡或全面海巡時會自動跳過 <#${targetChannel.id}> 囉！A！` });
+
+        } else if (action === 'remove') {
+          if (!targetChannel) {
+            return interaction.followUp({ content: '❌ 請指定要重新納入海巡的文字頻道！' });
+          }
+          excluded = excluded.filter(id => id !== targetChannel.id);
+          await guildSettingsRepository.updateKnowledgeExclude(guildId, excluded);
+          return interaction.followUp({ content: `✅ 了解！以後全面海巡時會重新將 <#${targetChannel.id}> 納入我的海巡路線囉！A！` });
+
+        } else if (action === 'list') {
+          if (excluded.length === 0) {
+            return interaction.followUp({ content: '🦈 目前沒有任何頻道被排入海巡排除名單中喔！' });
+          }
+          const listStr = excluded.map(id => `<#${id}>`).join(', ');
+          return interaction.followUp({ content: `🦈 **當前海巡排除頻道名單：**\n${listStr}` });
+        }
+
+      } else if (subcommand === 'schedule') {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        const cronStr = interaction.options.getString('cron').trim();
+
+        if (cronStr !== 'disable' && !cron.validate(cronStr)) {
+          return interaction.followUp({ content: '❌ 無效的 Crontab 語法！例如可以使用 `"0 4 * * 0"` 代表每週日凌晨 4 點定時海巡，或者輸入 `"disable"` 停用定時功能。' });
+        }
+
+        // 更新資料庫
+        await guildSettingsRepository.updateKnowledgeCron(guildId, cronStr);
+        // 動態重載記憶體內的 cron 任務
+        await scheduleScanner.updateSchedule(guildId, cronStr, interaction.client);
+
+        if (cronStr === 'disable') {
+          return interaction.followUp({ content: '✅ 已經停用此伺服器的定時自動海巡排程囉！🦈' });
+        } else {
+          return interaction.followUp({ content: `✅ 設定成功！我已將本伺服器的定時自動海巡設定為 \`${cronStr}\`。時間一到我會自動巡邏！A！🦈✨` });
+        }
       }
     } catch (error) {
       logger.error(`執行 /knowledge ${subcommand} 失敗:`, error);

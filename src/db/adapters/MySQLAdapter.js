@@ -124,6 +124,14 @@ class MySQLAdapter extends BaseAdapter {
       await this.pool.query('ALTER TABLE guild_settings ADD COLUMN tag_disabled_until BIGINT DEFAULT 0');
     } catch (err) { if (err.code !== 'ER_DUP_FIELDNAME') logger.warn(err); }
 
+    try {
+      await this.pool.query('ALTER TABLE guild_settings ADD COLUMN knowledge_cron VARCHAR(255) DEFAULT NULL');
+    } catch (err) { if (err.code !== 'ER_DUP_FIELDNAME') logger.warn(err); }
+
+    try {
+      await this.pool.query('ALTER TABLE guild_settings ADD COLUMN knowledge_exclude TEXT DEFAULT NULL');
+    } catch (err) { if (err.code !== 'ER_DUP_FIELDNAME') logger.warn(err); }
+
     // 建立指令允許頻道表
     await this.pool.query(`
       CREATE TABLE IF NOT EXISTS command_channels (

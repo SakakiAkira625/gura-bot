@@ -3,7 +3,7 @@ const BaseRepository = require('./BaseRepository');
 class GuildSettingsRepository extends BaseRepository {
   async get(guildId) {
     return await this.db.get(
-      'SELECT reply_cooldown, tag_limit_role_id, tag_limit_hours, tag_disabled_until FROM guild_settings WHERE guild_id = ?',
+      'SELECT reply_cooldown, tag_limit_role_id, tag_limit_hours, tag_disabled_until, knowledge_cron, knowledge_exclude FROM guild_settings WHERE guild_id = ?',
       [guildId]
     );
   }
@@ -47,6 +47,27 @@ class GuildSettingsRepository extends BaseRepository {
     return await this.db.run(
       'UPDATE guild_settings SET tag_disabled_until = 0 WHERE guild_id = ?',
       [guildId]
+    );
+  }
+
+  async updateKnowledgeExclude(guildId, excludeList) {
+    const listStr = JSON.stringify(excludeList);
+    return await this.db.run(
+      'INSERT INTO guild_settings (guild_id, knowledge_exclude) VALUES (?, ?) ON DUPLICATE KEY UPDATE knowledge_exclude = ?',
+      [guildId, listStr, listStr]
+    );
+  }
+
+  async updateKnowledgeCron(guildId, cronExpression) {
+    return await this.db.run(
+      'INSERT INTO guild_settings (guild_id, knowledge_cron) VALUES (?, ?) ON DUPLICATE KEY UPDATE knowledge_cron = ?',
+      [guildId, cronExpression, cronExpression]
+    );
+  }
+
+  async getAllSchedules() {
+    return await this.db.all(
+      'SELECT guild_id, knowledge_cron, knowledge_exclude FROM guild_settings WHERE knowledge_cron IS NOT NULL AND knowledge_cron != "disable"'
     );
   }
 }

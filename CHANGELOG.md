@@ -2,6 +2,19 @@
 
 此專案的所有顯著變更將會記錄在此檔案中。
 
+## [3.2.0] - 2026-06-27
+
+### 新增 (Added)
+- **排程、排除與活躍度分批海巡功能**：
+  - 在 `guild_settings` 表中新增 `knowledge_cron` 與 `knowledge_exclude` 欄位以持久化定時排程與排除清單。
+  - 擴充 `GuildSettingsRepository`，增加定時與排除清單的讀寫與列出方法。
+  - 新增 `scheduleScanner.js` 定時排程服務，支援在 bot 啟動時自動加載各伺服器的 Cron 任務，並可在管理員變更排程時動態更新記憶體任務。
+  - `/knowledge` 新增兩個子指令：
+    - `/knowledge exclude action:[add/remove/list] [channel]`：設定或管理排除在自動海巡之外的文字頻道。
+    - `/knowledge schedule cron:[crontab_expr/disable]`：設定定時自動海巡排程（如 `0 4 * * 0` 每週日凌晨 4 點）或關閉排程。
+  - 在 `guildScanner.js` 中實作**活躍度梯隊分批海巡 (Tiered Scanning)**：對掃描的頻道，自動依據最後發言的 Snowflake ID 進行降序排列（最活躍的排在最前面），分批次執行（每 3 個頻道為一梯隊，梯隊之間有 15 秒冷卻），防止 NVIDIA 40 RPM API 限制與 Discord API 速率限制。
+  - 定時自動海巡執行時，會將實時進度（包括每個頻道的執行狀態與已產生的焦點簡報 snippet）實時發送並更新於伺服器的日誌或系統頻道中，方便管理員隨時掌握定時海巡進度與焦點。
+
 ## [3.1.1] - 2026-06-27
 
 ### 變更 (Changed)

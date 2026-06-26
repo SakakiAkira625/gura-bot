@@ -137,21 +137,45 @@ async function scanChannel(channel, maxMessages, onProgress) {
 }
 
 /**
- * 依序掃描多個頻道，並透過回呼通知總體與單一進度
+ * 依序掃描多個頻道，並透過回呼通知總體與單一進度。
+ * 自動依據最後發言 Snowflake ID 降序排列，劃分高、中、低活躍度梯隊批次掃描。
  * @param {Array<TextChannel>} channels 頻道物件陣列
  * @param {number} maxMessages 每個頻道的掃描上限
- * @param {Function} onProgress 總進度回呼 (channelId, state, overallProgress)
+ * @param {Function} onProgress 總進度回呼
  */
 async function scanChannels(channels, maxMessages, onProgress) {
+  // 1. 依據 lastMessageId (Snowflake ID) 降序排序，最活躍的在最前面
+  channels.sort((a, b) => {
+    const idA = a.lastMessageId || '0';
+    const idB = b.lastMessageId || '0';
+    return idB.localeCompare(idA);
+  });
+
+  const tierSize = 3; // 每 3 個頻道為一個活躍度梯隊
   for (let idx = 0; idx < channels.length; idx++) {
     const channel = channels[idx];
+    const currentTier = Math.floor(idx / tierSize) + 1;
+
+    // 梯隊邊界，除了第一個梯隊外，其餘梯隊開始前進行 15 秒冷卻，避免 NVIDIA NIM 40 RPM 限流
+    if (idx > 0 && idx % tierSize === 0) {
+      if (typeof onProgress === 'function') {
+        onProgress(channel.id, {
+          status: 'scanning',
+          info: `[活躍度梯隊 Tier ${currentTier}] 梯隊間隔冷卻中... 15 秒後開始海巡下一個活躍度梯隊。`
+        });
+      }
+      await delay(15000);
+    }
+
     await scanChannel(channel, maxMessages, (channelId, state) => {
       if (typeof onProgress === 'function') {
-        onProgress(channelId, state, idx, channels.length);
+        const enrichedInfo = `[Tier ${currentTier}] ${state.info}`;
+        onProgress(channelId, { status: state.status, info: enrichedInfo, snippet: state.snippet }, idx, channels.length);
       }
     });
-    // 頻道之間稍作間隔，保護連線
-    if (idx < channels.length - 1) {
+
+    // 同一梯隊內的頻道掃描間隔 2 秒
+    if (idx < channels.length - 1 && (idx + 1) % tierSize !== 0) {
       await delay(2000);
     }
   }
@@ -168,5 +192,6 @@ function startScan(channels, maxMessages, onProgress) {
 }
 
 module.exports = {
-  startScan
+  startScan,
+  scanChannel
 };
