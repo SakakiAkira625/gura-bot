@@ -11,6 +11,22 @@ const logger = require('../utils/logger');
 const { getMessage } = require('../utils/i18n');
 const { getDb } = require('../db/database');
 
+/**
+ * 清理 AI 回覆中可能被模仿生出的時間戳或角色名稱前綴
+ */
+function cleanReplyPrefix(text) {
+  if (!text) return '';
+  let previousText;
+  do {
+    previousText = text;
+    // 移除時間戳，例如 [下午08:20]、[14:30]、[上午 09:15]
+    text = text.replace(/^\[(?:上午|下午)?\s*\d{1,2}:\d{2}(?::\d{2})?\]\s*/i, '');
+    // 移除可能模仿的角色名前綴，例如 [Gura]:、[Gawr Gura]:、[assistant]:、[GawrGura]:
+    text = text.replace(/^\[(?:Gura|Gawr\s+Gura|assistant|GawrGura)\]:\s*/i, '');
+  } while (text !== previousText);
+  return text;
+}
+
 module.exports = {
   name: 'messageCreate',
   async execute(message) {
@@ -268,6 +284,9 @@ module.exports = {
       } else {
         reply = await askNvidiaWithFallback(finalPromptPayload, history, systemPrompt, 'CHAT');
       }
+
+      // 清理 reply 開頭可能被 AI 模仿生出的時間戳或角色標籤
+      reply = cleanReplyPrefix(reply);
       
       // 儲存 Gura 的回覆 (機器人本身的 user_id)，注意不要把耗時字串存進資料庫，否則模型會學習並自己產生
       await db.run('INSERT INTO history (user_id, channel_id, role, content, timestamp) VALUES (?, ?, ?, ?, ?)', [message.client.user.id, channelId, 'assistant', reply, Date.now()]);
