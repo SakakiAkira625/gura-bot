@@ -57,7 +57,16 @@ class KnowledgeRepository extends BaseRepository {
    */
   async getKnowledgeByGuild(guildId, limit = 10) {
     return await this.db.all(
-      'SELECT * FROM guild_knowledge WHERE guild_id = ? ORDER BY timestamp DESC LIMIT ?',
+      `SELECT gk.*
+       FROM guild_knowledge gk
+       INNER JOIN (
+         SELECT channel_id, MAX(timestamp) as max_ts
+         FROM guild_knowledge
+         WHERE guild_id = ?
+         GROUP BY channel_id
+       ) latest ON gk.channel_id = latest.channel_id AND gk.timestamp = latest.max_ts
+       ORDER BY gk.timestamp DESC
+       LIMIT ?`,
       [guildId, limit]
     );
   }
