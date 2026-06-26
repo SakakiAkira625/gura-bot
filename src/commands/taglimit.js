@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const { getDb } = require('../db/database');
+const guildSettingsRepository = require('../db/repositories/GuildSettingsRepository');
 const logger = require('../utils/logger');
 
 module.exports = {
@@ -35,7 +35,6 @@ module.exports = {
 
   async execute(interaction) {
     const subcommand = interaction.options.getSubcommand();
-    const db = await getDb();
     const guildId = interaction.guildId;
 
     if (!guildId) return interaction.reply({ content: '❌ 此指令只能在伺服器內使用。', flags: 64 });
@@ -45,21 +44,18 @@ module.exports = {
         const role = interaction.options.getRole('target');
         const hours = interaction.options.getInteger('hours');
         
-        await db.run(
-          'INSERT INTO guild_settings (guild_id, tag_limit_role_id, tag_limit_hours, tag_disabled_until) VALUES (?, ?, ?, 0) ON DUPLICATE KEY UPDATE tag_limit_role_id = ?, tag_limit_hours = ?',
-          [guildId, role.id, hours, role.id, hours]
-        );
+        await guildSettingsRepository.setTagLimit(guildId, role.id, hours);
         
         await interaction.reply(`✅ 已將 ${role} 設為受保護身分組。若有人（非管理員）標註此身分組，該身分組將自動關閉標註功能 **${hours} 小時**。`);
       }
       
       else if (subcommand === 'remove') {
-        await db.run('UPDATE guild_settings SET tag_limit_role_id = NULL, tag_disabled_until = 0 WHERE guild_id = ?', [guildId]);
+        await guildSettingsRepository.removeTagLimit(guildId);
         await interaction.reply('✅ 已關閉並移除身分組保護功能。');
       }
       
       else if (subcommand === 'status') {
-        const gs = await db.get('SELECT tag_limit_role_id, tag_limit_hours, tag_disabled_until FROM guild_settings WHERE guild_id = ?', [guildId]);
+        const gs = await guildSettingsRepository.get(guildId);
         
         if (!gs || !gs.tag_limit_role_id) {
           return interaction.reply({ content: '本伺服器尚未啟用身分組標註限制功能。', flags: 64 });

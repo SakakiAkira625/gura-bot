@@ -6,10 +6,10 @@ const fsPromises = require('fs').promises;
 const path = require('path');
 const { DISCORD_TOKEN } = require('./config/env');
 const logger = require('./utils/logger');
-const { getDb } = require('./db/database');
+const dbManager = require('./db/DBManager');
 
-// 初始化資料庫
-getDb();
+// 初始化資料庫管理核心與連線
+dbManager.initialize();
 
 const client = new Client({
   intents: [

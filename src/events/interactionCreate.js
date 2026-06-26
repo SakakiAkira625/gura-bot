@@ -3,7 +3,6 @@ const logger = require('../utils/logger');
 const wikiCommand = require('../commands/wiki');
 const { franc } = require('franc');
 const { detectChinese } = require('../utils/helpers');
-const { getDb } = require('../db/database');
 
 module.exports = {
   name: 'interactionCreate',

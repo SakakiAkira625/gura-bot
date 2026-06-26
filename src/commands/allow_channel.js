@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const { getDb } = require('../db/database');
+const commandChannelRepository = require('../db/repositories/CommandChannelRepository');
 const logger = require('../utils/logger');
 
 module.exports = {
@@ -31,20 +31,11 @@ module.exports = {
     }
 
     try {
-      const db = await getDb();
-
       if (action === 'add') {
-        // 使用 INSERT IGNORE 來避免重複新增造成的錯誤
-        await db.run(
-          'INSERT IGNORE INTO command_channels (guild_id, channel_id) VALUES (?, ?)',
-          [guildId, targetChannel.id]
-        );
+        await commandChannelRepository.add(guildId, targetChannel.id);
         return interaction.followUp({ content: `✅ 沒問題！我記住了，以後大家可以在 <#${targetChannel.id}> 叫我執行指令囉！A！` });
       } else if (action === 'remove') {
-        await db.run(
-          'DELETE FROM command_channels WHERE guild_id = ? AND channel_id = ?',
-          [guildId, targetChannel.id]
-        );
+        await commandChannelRepository.remove(guildId, targetChannel.id);
         return interaction.followUp({ content: `✅ 了解！以後我不會在 <#${targetChannel.id}> 理會指令囉！A！` });
       }
     } catch (error) {

@@ -2,7 +2,8 @@ const logger = require('../utils/logger');
 const { deployCommands } = require('../utils/deployCommands');
 const modelManager = require('../services/modelManager');
 const { startDreamCronJob } = require('../services/dreamEngine');
-const { getDb } = require('../db/database');
+const dbManager = require('../db/DBManager');
+const guildSettingsRepository = require('../db/repositories/GuildSettingsRepository');
 
 module.exports = {
   name: 'clientReady',
@@ -11,8 +12,8 @@ module.exports = {
     logger.info(`Gura 已上線：${client.user.tag}`);
     await deployCommands(client.user.id, process.env.DISCORD_TOKEN);
     
-    // 預熱資料庫連線 (避免第一次指令超時)
-    await getDb();
+    // 初始化資料庫管理核心與連線
+    await dbManager.initialize();
 
     // 同步模型清單並做初步測試
     await modelManager.syncModels();
@@ -31,10 +32,9 @@ module.exports = {
     // 啟動身分組標註限制檢查排程 (Tag Limit Check)
     setInterval(async () => {
       try {
-        const db = await getDb();
         const now = Date.now();
         // 找出已到期且需要解除限制的設定
-        const records = await db.all('SELECT guild_id, tag_limit_role_id FROM guild_settings WHERE tag_disabled_until > 0 AND tag_disabled_until <= ?', [now]);
+        const records = await guildSettingsRepository.getExpiredTagLimits(now);
         
         for (const row of records) {
           const guild = client.guilds.cache.get(row.guild_id);
@@ -45,7 +45,7 @@ module.exports = {
               logger.info(`伺服器 ${guild.name} 的保護身分組 ${role.name} 已過限制時間，重新開啟 mentionable。`);
             }
           }
-          await db.run('UPDATE guild_settings SET tag_disabled_until = 0 WHERE guild_id = ?', [row.guild_id]);
+          await guildSettingsRepository.clearTagDisabled(row.guild_id);
         }
       } catch (err) {
         logger.error('[Tag Limit Background Task Error]', err);

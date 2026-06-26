@@ -1,4 +1,5 @@
-const db = require('../db/database');
+const memoryRepository = require('../db/repositories/MemoryRepository');
+const historyRepository = require('../db/repositories/HistoryRepository');
 const logger = require('../utils/logger');
 const { getEmbedding } = require('./embeddingService');
 const { askNvidiaWithFallback } = require('./nvidiaService');
@@ -31,8 +32,7 @@ function computeCosineSimilarity(vecA, vecB) {
 async function retrieveRelevantMemories(userId, queryText, topK = 3, threshold = 0.35) {
   try {
     const queryEmbedding = await getEmbedding(queryText);
-    const pool = await db.getDb();
-    const rows = await pool.all('SELECT summary, embedding FROM long_term_memories WHERE user_id = ?', [userId]);
+    const rows = await memoryRepository.getAllByUser(userId);
     
     if (!rows || rows.length === 0) return [];
 
@@ -67,13 +67,8 @@ async function retrieveRelevantMemories(userId, queryText, topK = 3, threshold =
  */
 async function summarizeAndStoreMemory(userId, channelId) {
   try {
-    const pool = await db.getDb();
-    
     // 取得尚未總結的對話 (僅計算該使用者的訊息量來當作觸發條件)
-    const unsummarized = await pool.all(
-      'SELECT id, role, content FROM history WHERE user_id = ? AND channel_id = ? AND is_summarized = 0 ORDER BY timestamp ASC',
-      [userId, channelId]
-    );
+    const unsummarized = await historyRepository.getUnsummarized(userId, channelId);
 
     // 每 5 則使用者的訊息觸發一次總結 (降低門檻讓記憶更快成型)
     if (unsummarized.length < 5) return;
@@ -81,10 +76,7 @@ async function summarizeAndStoreMemory(userId, channelId) {
     const idsToUpdate = unsummarized.map(r => r.id);
     
     // 取得頻道內最近的 20 筆對話，包含 Gura 的回覆，這樣 LLM 總結時才有上下文
-    const recentHistory = await pool.all(
-      'SELECT role, content FROM history WHERE channel_id = ? ORDER BY timestamp DESC LIMIT 20',
-      [channelId]
-    );
+    const recentHistory = await historyRepository.getRecent(channelId, 20);
     const conversationText = recentHistory.reverse().map(r => `${r.role === 'user' ? '使用者' : 'Gura'}: ${r.content}`).join('\n');
 
     logger.info(`[海馬迴] 正在為使用者 ${userId} 壓縮 ${unsummarized.length} 筆對話記憶...`);
@@ -113,18 +105,14 @@ async function summarizeAndStoreMemory(userId, channelId) {
       const cleanedSummary = summary.trim();
       const embedding = await getEmbedding(cleanedSummary);
       
-      await pool.run(
-        'INSERT INTO long_term_memories (user_id, summary, embedding, timestamp) VALUES (?, ?, ?, ?)',
-        [userId, cleanedSummary, JSON.stringify(embedding), Date.now()]
-      );
+      await memoryRepository.add(userId, cleanedSummary, embedding);
       logger.info(`[海馬迴] 已成功儲存新記憶點: ${cleanedSummary.split('\n')[0].substring(0, 30)}...`);
     } else {
       logger.info(`[海馬迴] 對話中無特殊記憶點，跳過儲存。`);
     }
 
     // 將這些紀錄標記為已總結，無論是否有產生記憶點都要標記
-    const placeholders = idsToUpdate.map(() => '?').join(',');
-    await pool.run(`UPDATE history SET is_summarized = 1 WHERE id IN (${placeholders})`, idsToUpdate);
+    await historyRepository.markAsSummarized(idsToUpdate);
     
   } catch (error) {
     logger.error(`[海馬迴沉澱錯誤] ${error.message}`);

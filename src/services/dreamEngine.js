@@ -1,5 +1,6 @@
 const cron = require('node-cron');
-const db = require('../db/database');
+const memoryRepository = require('../db/repositories/MemoryRepository');
+const botStateRepository = require('../db/repositories/BotStateRepository');
 const logger = require('../utils/logger');
 const { askNvidiaWithFallback } = require('./nvidiaService');
 
@@ -8,10 +9,8 @@ const { askNvidiaWithFallback } = require('./nvidiaService');
  */
 async function generateDream() {
   try {
-    const pool = await db.getDb();
-    
     // 隨機抽取 3 條長期的記憶點作為夢境素材
-    const memories = await pool.all('SELECT summary FROM long_term_memories ORDER BY RAND() LIMIT 3');
+    const memories = await memoryRepository.getRandomMemories(3);
     
     if (!memories || memories.length === 0) {
       logger.info('[Dream Engine] 缺乏記憶素材，今晚不做夢。');
@@ -34,11 +33,11 @@ ${memoryPoints}`
     const dreamLog = await askNvidiaWithFallback("請生出一段你剛睡醒分享夢境的發言", [], systemPrompt, 'CHAT');
     
     // 確保有 bot_state
-    const stateCount = await pool.get('SELECT COUNT(*) as count FROM bot_state');
-    if (stateCount.count === 0) {
-      await pool.run('INSERT INTO bot_state (id, current_dream, last_dream_at) VALUES (1, ?, ?)', [dreamLog, Date.now()]);
+    const count = await botStateRepository.count();
+    if (count === 0) {
+      await botStateRepository.insert(dreamLog, Date.now());
     } else {
-      await pool.run('UPDATE bot_state SET current_dream = ?, last_dream_at = ? WHERE id = 1', [dreamLog, Date.now()]);
+      await botStateRepository.update(dreamLog, Date.now());
     }
 
     logger.info(`[Dream Engine] 作夢完成！已儲存夢境等待早晨觸發。`);

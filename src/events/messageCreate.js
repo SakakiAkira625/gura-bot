@@ -9,7 +9,13 @@ const { retrieveRelevantMemories, summarizeAndStoreMemory } = require('../servic
 const { downloadTextFile } = require('../utils/fileHelper');
 const logger = require('../utils/logger');
 const { getMessage } = require('../utils/i18n');
-const { getDb } = require('../db/database');
+
+// 載入資料庫 Repositories
+const userRepository = require('../db/repositories/UserRepository');
+const historyRepository = require('../db/repositories/HistoryRepository');
+const guildSettingsRepository = require('../db/repositories/GuildSettingsRepository');
+const commandChannelRepository = require('../db/repositories/CommandChannelRepository');
+const botStateRepository = require('../db/repositories/BotStateRepository');
 
 // 記憶體中記錄使用者最後收到冷卻監獄警告的時間，防止 Discord API 限流
 const jailWarningCooldowns = new Map();
@@ -45,16 +51,12 @@ module.exports = {
 
     const { mapLangCodeToWikiLang } = require('../utils/helpers');
 
-    const db = await getDb();
     const userId = message.author.id;
     const channelId = message.channel.id;
     
     // 檢查頻道是否在 AI 對話白名單內 (如果該伺服器有設定白名單的話)
     if (message.guildId) {
-      const allowedChannels = await db.all(
-        'SELECT channel_id FROM command_channels WHERE guild_id = ?',
-        [message.guildId]
-      );
+      const allowedChannels = await commandChannelRepository.getAllowed(message.guildId);
       if (allowedChannels.length > 0) {
         const isAllowed = allowedChannels.some(row => row.channel_id === channelId);
         if (!isAllowed) return; // 不在白名單內，不進行 AI 對話
@@ -65,7 +67,7 @@ module.exports = {
     // 🌟 檢查身分組標註限制 (Tag Limit)
     if (message.guildId) {
       try {
-        const gs = await db.get('SELECT tag_limit_role_id, tag_limit_hours FROM guild_settings WHERE guild_id = ?', [message.guildId]);
+        const gs = await guildSettingsRepository.get(message.guildId);
         if (gs && gs.tag_limit_role_id && message.mentions.roles.has(gs.tag_limit_role_id)) {
           // 如果標註了受保護身分組，檢查權限
           const member = message.member;
@@ -75,7 +77,7 @@ module.exports = {
             const targetRole = message.guild.roles.cache.get(gs.tag_limit_role_id);
             if (targetRole && targetRole.mentionable) {
               const disabledUntil = now + (gs.tag_limit_hours * 60 * 60 * 1000);
-              await db.run('UPDATE guild_settings SET tag_disabled_until = ? WHERE guild_id = ?', [disabledUntil, message.guildId]);
+              await guildSettingsRepository.updateTagDisabledUntil(message.guildId, disabledUntil);
               await targetRole.setMentionable(false, 'User triggered tag limit');
               const untilDate = new Date(disabledUntil).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
               logger.info(`用戶 ${message.author.username} (${message.author.id}) 標註了保護身分組 ${targetRole.name}，已關閉 mentionable 直到 ${untilDate}。`);
@@ -93,11 +95,10 @@ module.exports = {
     // 🌟 功能一：好感度與等級系統 (Shrimp Level System)
     let user = null;
     try {
-      user = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
+      user = await userRepository.getById(userId);
       
       if (!user) {
-        await db.run('INSERT INTO users (id, xp, level, last_message_at) VALUES (?, 0, 1, ?)', [userId, now]);
-        user = { id: userId, xp: 0, level: 1, last_message_at: now, last_reply_at: 0, cooldown_until: 0 };
+        user = await userRepository.create(userId, now);
       }
 
       // 60秒冷卻時間，避免洗頻刷經驗
@@ -113,7 +114,7 @@ module.exports = {
           await message.channel.send(`🎉 <@${userId}> 的蝦蝦好感度提升到了等級 **${newLevel}**！a... 謝謝你的陪伴！`);
         }
 
-        await db.run('UPDATE users SET xp = ?, level = ?, last_message_at = ? WHERE id = ?', [newXp, newLevel, now, userId]);
+        await userRepository.updateXpAndLevel(userId, newXp, newLevel, now);
       }
     } catch (err) {
       logger.error('更新使用者等級失敗', err);
@@ -137,7 +138,7 @@ module.exports = {
 
       // 2. 檢查是否在全域冷卻中
       if (message.guildId) {
-        const gs = await db.get('SELECT reply_cooldown FROM guild_settings WHERE guild_id = ?', [message.guildId]);
+        const gs = await guildSettingsRepository.get(message.guildId);
         if (gs && gs.reply_cooldown > 0 && user.last_reply_at) {
           if (now - user.last_reply_at < gs.reply_cooldown * 1000) {
             try {
@@ -156,7 +157,7 @@ module.exports = {
       const userPromptWithName = `[${message.author.username}]: ${userPrompt}`;
 
       // 讀取最近的 10 筆對話紀錄 (取得先前的歷史，不包含當前訊息)
-      const rawHistory = await db.all('SELECT role, content, timestamp FROM history WHERE channel_id = ? ORDER BY timestamp DESC LIMIT 10', [channelId]);
+      const rawHistory = await historyRepository.getRecent(channelId, 10);
       const history = rawHistory.reverse().map(row => {
         const timeStr = new Date(row.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Taipei' });
         return {
@@ -166,7 +167,7 @@ module.exports = {
       });
 
       // 儲存使用者的當前對話
-      await db.run('INSERT INTO history (user_id, channel_id, role, content, timestamp) VALUES (?, ?, ?, ?, ?)', [userId, channelId, 'user', userPromptWithName, now]);
+      await historyRepository.add(userId, channelId, 'user', userPromptWithName, now);
 
       const systemPrompt = getSystemPromptByLang(langCode);
 
@@ -183,7 +184,7 @@ module.exports = {
 
       // 🌟 夢境觸發系統：檢查是否有人說早安，且昨晚有作夢
       if (userPrompt.match(/早安|morning|早阿|早上好/i)) {
-        const state = await db.get('SELECT current_dream FROM bot_state WHERE id = 1');
+        const state = await botStateRepository.get();
         if (state && state.current_dream) {
           try {
             await message.channel.sendTyping();
@@ -191,9 +192,9 @@ module.exports = {
           logger.info(`[Dream Engine] 觸發晨間夢境分享給 ${message.author.username}`);
           
           const reply = state.current_dream;
-          await db.run('UPDATE bot_state SET current_dream = NULL WHERE id = 1'); // 清空夢境，避免重複分享
+          await botStateRepository.clearDream(); // 清空夢境，避免重複分享
           
-          await db.run('INSERT INTO history (user_id, channel_id, role, content, timestamp) VALUES (?, ?, ?, ?, ?)', [message.client.user.id, channelId, 'assistant', reply, Date.now()]);
+          await historyRepository.add(message.client.user.id, channelId, 'assistant', reply, Date.now());
           await message.reply(reply);
           return; // 結束流程，不繼續進入普通 LLM 回覆
         }
@@ -297,7 +298,7 @@ module.exports = {
       reply = cleanReplyPrefix(reply);
       
       // 儲存 Gura 的回覆 (機器人本身的 user_id)，注意不要把耗時字串存進資料庫，否則模型會學習並自己產生
-      await db.run('INSERT INTO history (user_id, channel_id, role, content, timestamp) VALUES (?, ?, ?, ?, ?)', [message.client.user.id, channelId, 'assistant', reply, Date.now()]);
+      await historyRepository.add(message.client.user.id, channelId, 'assistant', reply, Date.now());
 
       const reqEndTime = Date.now();
       const timeTaken = ((reqEndTime - reqStartTime) / 1000).toFixed(1);
@@ -338,7 +339,7 @@ module.exports = {
       summarizeAndStoreMemory(userId, channelId).catch(e => logger.error(`[海馬迴背景處理失敗] ${e.message}`));
 
       // 更新使用者的最後 AI 回覆時間
-      await db.run('UPDATE users SET last_reply_at = ? WHERE id = ?', [Date.now(), userId]);
+      await userRepository.updateLastReply(userId, Date.now());
 
     } catch (error) {
       logger.error('Error handling message:', error);

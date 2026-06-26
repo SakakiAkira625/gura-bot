@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { getDb } = require('../db/database');
+const userRepository = require('../db/repositories/UserRepository');
 const logger = require('../utils/logger');
 
 module.exports = {
@@ -12,8 +12,7 @@ module.exports = {
 
     const userId = interaction.user.id;
     try {
-      const db = await getDb();
-      const user = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
+      const user = await userRepository.getById(userId);
 
       if (!user) {
         return interaction.editReply('🦐 a... 我對你還不太熟呢！多跟我聊天來增加好感度吧！');

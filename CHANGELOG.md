@@ -2,6 +2,14 @@
 
 此專案的所有顯著變更將會記錄在此檔案中。
 
+## [3.0.0] - 2026-06-27
+
+### 變更 (Changed)
+- **底層資料庫大重構 (Repository & Adapter Pattern)**：完成了整個資料庫層的架構重組，成功將底層 MySQL 數據讀寫從主程式業務邏輯中抽離。
+  - 新增 `DBManager` 作為多資料庫連線的單一入口。
+  - 建立 `BaseAdapter` 與 `MySQLAdapter` 定義標準連線協議，保留未來擴充 Postgres/MongoDB 的能力。
+  - 開發並替換所有的 Repositories (`UserRepository`, `HistoryRepository`, `GuildSettingsRepository`, `MemoryRepository`, `BotStateRepository`, `CommandChannelRepository`) 代替原生 SQL 操作。
+
 ## [2.9.9] - 2026-06-27
 
 ### 修正 (Fixed)
