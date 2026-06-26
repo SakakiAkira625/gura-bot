@@ -132,6 +132,31 @@ class MySQLAdapter extends BaseAdapter {
         PRIMARY KEY (guild_id, channel_id)
       )
     `);
+
+    // 建立海巡掃描狀態表
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS knowledge_scans (
+        channel_id VARCHAR(255) PRIMARY KEY,
+        guild_id VARCHAR(255),
+        last_scanned_message_id VARCHAR(255) DEFAULT NULL,
+        status VARCHAR(50) DEFAULT 'idle',
+        updated_at BIGINT DEFAULT 0
+      )
+    `);
+
+    // 建立伺服器海巡知識庫表
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS guild_knowledge (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        guild_id VARCHAR(255),
+        channel_id VARCHAR(255),
+        summary TEXT,
+        start_message_id VARCHAR(255),
+        end_message_id VARCHAR(255),
+        message_count INT DEFAULT 0,
+        timestamp BIGINT DEFAULT 0
+      )
+    `);
   }
 
   async run(sql, params = []) {

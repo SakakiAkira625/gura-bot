@@ -2,6 +2,19 @@
 
 此專案的所有顯著變更將會記錄在此檔案中。
 
+## [3.1.0] - 2026-06-27
+
+### 新增 (Added)
+- **伺服器海巡知識庫 (Guild Knowledge Patrol)**：
+  - 新增 `KnowledgeRepository` 類別，管理頻道的掃描狀態與儲存對話的彙整摘要。
+  - 開發 `guildScanner.js` 背景服務，具備 Discord API (分頁抓取) 與 NVIDIA NIM API (速率限制延遲) 防護的無阻塞非同步海巡功能。
+  - 新增 `/knowledge` 斜線指令組：
+    - `/knowledge scan [channel]`：開始背景掃描指定頻道的對話紀錄。
+    - `/knowledge status [channel]`：查詢海巡掃描的進度狀態（idle, scanning, completed, failed）。
+    - `/knowledge check [channel]`：預覽已產生的對話摘要。
+  - 擴充 `intentEngine.js` 以支援 `SERVER_QUERY` 意圖分類。
+  - 於 `messageCreate.js` 整合海巡上下文，當使用者詢問伺服器近況時，AI 能根據海巡所得摘要進行符合鯊魚 Persona 的生動回覆。
+
 ## [3.0.0] - 2026-06-27
 
 ### 變更 (Changed)

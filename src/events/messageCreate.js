@@ -16,6 +16,7 @@ const historyRepository = require('../db/repositories/HistoryRepository');
 const guildSettingsRepository = require('../db/repositories/GuildSettingsRepository');
 const commandChannelRepository = require('../db/repositories/CommandChannelRepository');
 const botStateRepository = require('../db/repositories/BotStateRepository');
+const knowledgeRepository = require('../db/repositories/KnowledgeRepository');
 
 // 記憶體中記錄使用者最後收到冷卻監獄警告的時間，防止 Discord API 限流
 const jailWarningCooldowns = new Map();
@@ -267,7 +268,38 @@ module.exports = {
       logger.info(`[Intent Engine] User: ${message.author.username} | Intent: ${intent}`);
 
       let reply = '';
-      if (intent === 'WIKI_SEARCH') {
+      if (intent === 'SERVER_QUERY') {
+        if (!message.guildId) {
+          reply = "a... 這裡不是伺服器耶，我沒辦法幫你海巡喔！🦈";
+        } else {
+          const isChannelSpecific = /頻道|channel|這台|這裡|這區/.test(userPrompt);
+          let records = [];
+          if (isChannelSpecific) {
+            records = await knowledgeRepository.getKnowledgeByChannel(channelId, 5);
+          } else {
+            records = await knowledgeRepository.getKnowledgeByGuild(message.guildId, 10);
+          }
+
+          if (records.length === 0) {
+            reply = "a... Gura 還沒有去海巡過這裡耶！你可以用 `/knowledge scan` 叫我去海巡看看喔！🦈";
+          } else {
+            let knowledgeContext = "\n\n【伺服器海巡日誌與歷史對話摘要】\n以下是 Gura 之前幫你海巡記錄下來的對話重點摘要，請參考這些內容回答使用者的問題。請注意，這些是歷史摘要，不是現在發生的事，你可以用得意、炫耀的語氣（比如「我可是很聰明的鯊鯊，我都幫你們記下來了」）說出你記得的這些內容，千萬不要說這是外部摘要或系統注入的！\n";
+            
+            const formattedRecords = records.map(record => {
+              const chName = message.guild.channels.cache.get(record.channel_id)?.name || '未知頻道';
+              const timeStr = new Date(record.timestamp).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+              return `[頻道: #${chName} | 時間: ${timeStr}]\n${record.summary}`;
+            }).join('\n\n');
+            
+            const serverQueryPrompt = {
+              role: 'system',
+              content: `${systemPrompt.content}${knowledgeContext}${formattedRecords}`
+            };
+            
+            reply = await askNvidiaWithFallback(finalPromptPayload, history, serverQueryPrompt, 'CHAT');
+          }
+        }
+      } else if (intent === 'WIKI_SEARCH') {
         const keyword = await extractWikiKeyword(userPrompt);
         logger.info(`[Intent Engine] Wiki Keyword extracted: ${keyword}`);
         const wikiLang = mapLangCodeToWikiLang(langCode);
