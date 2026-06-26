@@ -8,132 +8,162 @@ const SUMMARY_SYSTEM_PROMPT = {
   role: 'system',
   content: `
 You are Gawr Gura's background Knowledge Patrol assistant.
-Analyze the following Discord chat log. Extract key topics, discussions, decisions, announcements, or interesting topics discussed by the users.
-Summarize the main content in a concise, bullet-pointed format in Traditional Chinese (繁體中文).
-Keep the summary informative but concise (about 3-5 bullet points).
-Do NOT roleplay as Gura here, just output the clean summary as bullet points.
+You will be provided with a complete chronological chat log from a Discord channel.
+Your task is to thoroughly analyze the entire chat log and compile a comprehensive summary of the conversations.
+Specifically, you MUST output the summary in Traditional Chinese (繁體中文) using the following structure:
+
+1. **頻道對話綜觀 (General Overview)**:
+   - 用 2-4 個項目符號，精確摘要這段時間內聊到的核心主題、討論的決定、或是群內發生的重要事件。
+
+2. **使用者行為與特徵紀錄 (User Behaviors & Profiles)**:
+   - 識別這段對話中活躍的發言者。
+   - 針對每個活躍的使用者（用他們的用戶名稱作為標題），用 1-2 句話簡要記錄他們說了什麼、有什麼想法、有何特別行為、喜好、或值得記錄的專屬記憶點。
+   格式為：
+   - **[用戶名稱]**: 摘要其討論內容、偏好與重要記憶點。
+
+請保持內容結構清晰、條理分明。不要以 Gura 的角色語氣回答（保持客觀整理即可），整體長度控制在 500-800 字內。
 `.trim()
 };
 
 /**
- * 背景非同步掃描特定頻道
+ * 背景非同步掃描單一頻道，並透過回呼回報詳細進度與摘要片段
  * @param {TextChannel} channel Discord 頻道物件
- * @param {number} maxMessages 掃描上限訊息數 (預設 1000)
+ * @param {number} maxMessages 掃描上限訊息數
+ * @param {Function} onProgress 進度更新回呼 (channelId, state)
  */
-async function scanChannel(channel, maxMessages = 1000) {
+async function scanChannel(channel, maxMessages, onProgress) {
   const channelId = channel.id;
   const guildId = channel.guildId;
-  
+
+  const notifyProgress = (status, info, snippet = '') => {
+    if (typeof onProgress === 'function') {
+      onProgress(channelId, { status, info, snippet });
+    }
+  };
+
   try {
     logger.info(`[Guild Scanner] 開始背景掃描頻道: ${channel.name} (${channelId})`);
-    
-    // 1. 先標記狀態為掃描中
+    notifyProgress('scanning', '準備開始海巡並清理舊日誌...');
+
+    // 1. 清除舊有知識摘要
+    await knowledgeRepository.clearKnowledge(channelId);
     await knowledgeRepository.updateScanStatus(channelId, guildId, null, 'scanning');
 
-    // 2. 清除舊有知識摘要，準備寫入新數據
-    await knowledgeRepository.clearKnowledge(channelId);
-    
-    // 3. 開始抓取歷史對話
+    // 2. 開始分頁抓取歷史對話
     let lastId = null;
     let totalFetched = 0;
     let allMessages = [];
-    
+
     while (totalFetched < maxMessages) {
+      notifyProgress('scanning', `正在讀取歷史對話 (${totalFetched}/${maxMessages} 筆)...`);
+      
       const options = { limit: 100 };
       if (lastId) {
         options.before = lastId;
       }
-      
+
       const messages = await channel.messages.fetch(options);
       if (!messages || messages.size === 0) {
         break;
       }
-      
+
       allMessages.push(...messages.values());
       lastId = messages.last().id;
       totalFetched += messages.size;
-      
+
       if (messages.size < 100) {
         break;
       }
-      
-      // 延遲 2 秒以防 Discord API Rate Limit
+
+      // 延遲 2 秒以防 Discord API 限流
       await delay(2000);
     }
-    
-    logger.info(`[Guild Scanner] 成功自頻道 ${channel.name} 抓取 ${allMessages.length} 筆歷史訊息，開始進行分組摘要處理...`);
-    
-    if (allMessages.length === 0) {
+
+    notifyProgress('scanning', `讀取完成，共 ${allMessages.length} 筆對話，正在過濾與拼接...`);
+
+    // 3. 過濾機器人訊息並正序排列
+    const userMessages = allMessages
+      .filter(m => !m.author.bot && m.content.trim().length > 0)
+      .sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+
+    if (userMessages.length === 0) {
       await knowledgeRepository.updateScanStatus(channelId, guildId, null, 'completed');
+      notifyProgress('completed', '海巡完成 (此頻道近期無人類對話)', '查無人類對話紀錄。');
       return;
     }
-    
-    // 4. 轉為時間正序 (舊的在前，新的在後)
-    allMessages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
-    
-    // 5. 每 100 筆為一組進行摘要
-    const chunkSize = 100;
-    for (let i = 0; i < allMessages.length; i += chunkSize) {
-      const chunk = allMessages.slice(i, i + chunkSize);
-      
-      // 過濾掉機器人發的訊息以防雜訊
-      const userMessages = chunk.filter(m => !m.author.bot);
-      if (userMessages.length === 0) {
-        continue;
-      }
-      
-      // 格式化訊息
-      const formattedLog = userMessages.map(m => {
-        const timeStr = new Date(m.createdTimestamp).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
-        return `[${timeStr}] ${m.author.username}: ${m.content}`;
-      }).join('\n');
-      
-      // 呼叫 NVIDIA LLM
-      try {
-        const summary = await askNvidiaWithFallback(formattedLog, [], SUMMARY_SYSTEM_PROMPT, 'CHAT');
-        
-        // 儲存進資料庫
-        const startMsg = chunk[0];
-        const endMsg = chunk[chunk.length - 1];
-        const timestamp = endMsg.createdTimestamp;
-        
-        await knowledgeRepository.saveKnowledge(
-          guildId,
-          channelId,
-          summary.trim(),
-          startMsg.id,
-          endMsg.id,
-          chunk.length,
-          timestamp
-        );
-        
-        logger.info(`[Guild Scanner] 成功處理分段摘要 (${i} - ${i + chunk.length})`);
-      } catch (err) {
-        logger.error(`[Guild Scanner] 分段摘要 LLM 請求失敗: `, err);
-      }
-      
-      // 每呼叫一次 LLM 後延遲 3.5 秒保護 40 RPM
-      await delay(3500);
-    }
-    
-    // 6. 掃描完成
-    const lastMessageId = allMessages[allMessages.length - 1].id;
-    await knowledgeRepository.updateScanStatus(channelId, guildId, lastMessageId, 'completed');
-    logger.info(`[Guild Scanner] 頻道 ${channel.name} (${channelId}) 掃描與知識儲存完成！`);
-    
+
+    notifyProgress('scanning', '正在調用大上下文模型進行全面分析與成員特徵彙整...');
+
+    // 4. 格式化對話日誌
+    const formattedLog = userMessages.map(m => {
+      const timeStr = new Date(m.createdTimestamp).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
+      return `[${timeStr}] ${m.author.username}: ${m.content}`;
+    }).join('\n');
+
+    // 5. 調用 LLM 一口氣分析並摘要
+    const summary = await askNvidiaWithFallback(formattedLog, [], SUMMARY_SYSTEM_PROMPT, 'CHAT');
+
+    // 6. 儲存至資料庫
+    const startMsg = userMessages[0];
+    const endMsg = userMessages[userMessages.length - 1];
+    const timestamp = endMsg.createdTimestamp;
+
+    await knowledgeRepository.saveKnowledge(
+      guildId,
+      channelId,
+      summary.trim(),
+      startMsg.id,
+      endMsg.id,
+      userMessages.length,
+      timestamp
+    );
+
+    await knowledgeRepository.updateScanStatus(channelId, guildId, endMsg.id, 'completed');
+    logger.info(`[Guild Scanner] 頻道 ${channel.name} 掃描與知識儲存完成！`);
+
+    // 擷取前幾行作為即時摘要簡報
+    const lines = summary.trim().split('\n');
+    // 取「頻道對話綜觀」底下的前 2 個重點作為 snippet
+    const snippetLines = lines.slice(0, 5).filter(l => l.trim().startsWith('-') || l.trim().startsWith('*') || l.trim().includes('頻道對話綜觀'));
+    const snippet = snippetLines.join(' ') || lines.slice(0, 2).join(' ');
+
+    notifyProgress('completed', '海巡完成', snippet);
+
   } catch (error) {
-    logger.error(`[Guild Scanner] 背景掃描時發生致命錯誤: `, error);
+    logger.error(`[Guild Scanner] 頻道 ${channel.name} 背景掃描時發生錯誤: `, error);
     await knowledgeRepository.updateScanStatus(channelId, guildId, null, 'failed').catch(() => {});
+    notifyProgress('failed', `掃描失敗: ${error.message}`);
   }
 }
 
 /**
- * 啟動頻道海巡掃描的入口 (非同步執行，不阻塞)
+ * 依序掃描多個頻道，並透過回呼通知總體與單一進度
+ * @param {Array<TextChannel>} channels 頻道物件陣列
+ * @param {number} maxMessages 每個頻道的掃描上限
+ * @param {Function} onProgress 總進度回呼 (channelId, state, overallProgress)
  */
-function startScan(channel, maxMessages = 1000) {
-  // 不使用 await，直接在背景非同步執行
-  scanChannel(channel, maxMessages).catch(err => {
-    logger.error('[Guild Scanner] 背景掃描執行失敗: ', err);
+async function scanChannels(channels, maxMessages, onProgress) {
+  for (let idx = 0; idx < channels.length; idx++) {
+    const channel = channels[idx];
+    await scanChannel(channel, maxMessages, (channelId, state) => {
+      if (typeof onProgress === 'function') {
+        onProgress(channelId, state, idx, channels.length);
+      }
+    });
+    // 頻道之間稍作間隔，保護連線
+    if (idx < channels.length - 1) {
+      await delay(2000);
+    }
+  }
+}
+
+/**
+ * 啟動全面海巡掃描的非同步進入點
+ */
+function startScan(channels, maxMessages, onProgress) {
+  const channelArray = Array.isArray(channels) ? channels : [channels];
+  scanChannels(channelArray, maxMessages, onProgress).catch(err => {
+    logger.error('[Guild Scanner] 全面海巡任務發生致命異常:', err);
   });
 }
 
