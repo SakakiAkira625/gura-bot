@@ -2,6 +2,15 @@
 
 此專案的所有顯著變更將會記錄在此檔案中。
 
+## [3.2.2] - 2026-06-27
+
+### 新增 (Added)
+- **GitHub Release 自動同步描述功能**：
+  - 開發 `scripts/sync-releases.js` 自動同步變更日誌指令腳本，自動解析 `CHANGELOG.md` 並使用 GitHub CLI 建立/更新 GitHub Releases。
+  - 在 `package.json` 中註冊 `"sync-releases": "node scripts/sync-releases.js"` 方便手動或 CI/CD 自動調用。
+  - 更新 `agents.md` 與 `agent.md` 的工作手冊，要求未來的開發 Agents 在打 Tag 發布時執行此同步指令。
+  - 回溯同步（Backfill）了歷史專案的所有 44 個版本說明至 GitHub Releases。
+
 ## [3.2.1] - 2026-06-27
 
 ### 變更 (Changed)
