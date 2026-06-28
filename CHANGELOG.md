@@ -2,6 +2,12 @@
 
 此專案的所有顯著變更將會記錄在此檔案中。
 
+## [3.2.7] - 2026-06-28
+
+### 修正 (Fixed)
+- **CI 建置依賴修復 (Dependencies Lock File)**：
+  - 修正 `.github/workflows/release.yml` 中的安裝步驟（移除 `cache: 'npm'` 並將 `npm ci` 改為 `npm install`），適應專案對 `package-lock.json` 的獨立排除配置，確保 CI 建置流暢進行。
+
 ## [3.2.6] - 2026-06-28
 
 ### 升級與修正 (Upgraded & Fixed)
