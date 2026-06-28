@@ -2,6 +2,13 @@
 
 此專案的所有顯著變更將會記錄在此檔案中。
 
+## [3.2.6] - 2026-06-28
+
+### 升級與修正 (Upgraded & Fixed)
+- **GitHub Actions v4 套件升級**：
+  - 將 `.github/workflows/release.yml` 中的 `actions/upload-artifact` 與 `actions/download-artifact` 等 Action 套件全面升級至最新相容的 `v4` 版本（解決 GitHub 官方強制廢棄 v3 引發的建置中斷問題）。
+  - 配置 `merge-multiple: true` 展平與自動合併多平台產出之二進位檔。
+
 ## [3.2.5] - 2026-06-28
 
 ### 修正 (Fixed)
