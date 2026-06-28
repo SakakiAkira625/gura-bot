@@ -2,6 +2,13 @@
 
 此專案的所有顯著變更將會記錄在此檔案中。
 
+## [3.2.8] - 2026-06-28
+
+### 升級與修正 (Upgraded & Fixed)
+- **CI 下載 API 限流與 Node 20 升級修復**：
+  - 升級 `.github/workflows/release.yml` 中的 Node.js 執行環境至 `20`，消除依賴套件引擎警報。
+  - 在 CI 安裝步驟中加入 `YOUTUBE_DL_SKIP_DOWNLOAD: "true"`，防止 `youtube-dl-exec` 在 npm postinstall 階段發起 GitHub API 匿名請求而觸發 Rate Limit 導致建置中斷。
+
 ## [3.2.7] - 2026-06-28
 
 ### 修正 (Fixed)
