@@ -9,6 +9,7 @@
    - 進行本地 Git Commit 紀錄與標籤 (Tag) 標記（如 `git commit -m "..." && git tag vX.Y.Z`）。
    - 完成後主動或提醒使用者推送到遠端伺服器（`git push origin main --tags`）。
    - 推送標籤後，必須執行 `npm run sync-releases vX.Y.Z`（或不帶參數同步所有標籤）來同步 `CHANGELOG.md` 的變更內容至 GitHub Release 描述中。
+   - 同時執行 `npm run notify-discord vX.Y.Z`（需配置環境變數 `DISCORD_WEBHOOK_URL`）以美化的 Gura 主題 Embed 格式發送更新公告至 Discord 頻道。
 
 2. **開發原則**：
    - Gura 的 Persona 不應被破壞，所有對話、回覆設計必須符合 Gawr Gura 的設定與語氣。

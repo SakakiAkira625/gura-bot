@@ -2,6 +2,15 @@
 
 此專案的所有顯著變更將會記錄在此檔案中。
 
+## [3.2.3] - 2026-06-28
+
+### 新增 (Added)
+- **Discord Webhook 發送與美化更新通知 (CI/CD Notification)**：
+  - 開發 `scripts/notify-discord.js` 腳本，自動解析 `CHANGELOG.md` 並透過 Discord Webhook 發送精美的 Gawr Gura 主題海洋藍 (`0x00A2E8`) Embed 更新通知。
+  - 在 `package.json` 中註冊 `"notify-discord": "node scripts/notify-discord.js"` 腳本指令。
+  - 在 Embed 中整合包含 `:Gura_wink:` 的動態標題、自動防呆截斷（防止超過 4000 字元）、直接點擊至 GitHub Release 的超連結與標準時間戳記。
+  - 更新 `agents.md` 與 `agent.md` 的 AI Agents 開發工作流程。
+
 ## [3.2.2] - 2026-06-27
 
 ### 新增 (Added)

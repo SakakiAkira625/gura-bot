@@ -31,7 +31,7 @@
 1. **滾動版本號 (Bump Version)**：更新 `package.json` 的版本號。
 2. **本地版本紀錄 (Update Changelog)**：將這次的更動詳細記錄到 `CHANGELOG.md` 的最新版本標題下。
 3. **本地 Commit 紀錄 (Local Git Commit)**：使用 `git add` 與 `git commit` 將更動紀錄到本地端，並在 Commit 訊息中清楚描述變更內容。
-4. **推送並同步 Release (Push & Sync Releases)**：推送標籤到 GitHub 後，執行 `npm run sync-releases vX.Y.Z` 將變更日誌自動同步至 GitHub Release 描述。
+4. **推送並同步 Release與發送通知 (Push, Sync Releases & Notify Discord)**：推送標籤到 GitHub 後，執行 `npm run sync-releases vX.Y.Z` 將變更日誌自動同步至 GitHub Release 描述，並執行 `npm run notify-discord vX.Y.Z` 發送美化的 Gura 主題更新公告至 Discord 頻道。
 
 ### 5. Branching Strategy & Git Workflow
 - **clean-repo (`main` / `master`)**: 穩定的生產分支 (Production)。**只接受 PR 合併，原則上禁止未經確認直接 Push 破壞性更新。**
