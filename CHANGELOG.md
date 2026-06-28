@@ -2,6 +2,14 @@
 
 此專案的所有顯著變更將會記錄在此檔案中。
 
+## [3.2.12] - 2026-06-28
+
+### 新增與保護 (Added & Protected)
+- **伺服器表情自動同步系統與 PM2 Watch 防死迴圈保護**：
+  - 開發 `src/services/emojiManager.js`，於 Bot 開機時自動遍歷並持久化表情至 `src/data/emojis.json`。
+  - 將 `src/data/emojis.json` 加入 `.gitignore` 檔案中，搭配 `ecosystem.config.js` 的 `ignore_watch` 防護，徹底防止檔變更引發 PM2 自動重啟死迴圈。
+  - 大幅豐富 CI/CD 發報腳本 `scripts/notify-discord.js` 的 Gura 主題表符視覺效果 (🔱, 🦈, 💙, ✨, 🚀)。
+
 ## [3.2.11] - 2026-06-28
 
 ### 新增與優化 (Added & Enhanced)

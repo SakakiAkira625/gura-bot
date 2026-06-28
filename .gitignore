@@ -37,3 +37,4 @@ package-lock.json
 data.sqlite
 src/data/models.json
 src/data/scanned_models.json
+src/data/emojis.json

@@ -25,6 +25,10 @@ module.exports = {
     const scheduleScanner = require('../services/scheduleScanner');
     await scheduleScanner.initialize(client);
 
+    // 同步與快取全伺服器自訂表情符號
+    const emojiManager = require('../services/emojiManager');
+    await emojiManager.syncEmojis(client);
+
     // 啟動每週模型背景掃描排程
     const { scheduleScanning } = require('../services/modelScanner');
     scheduleScanning();
