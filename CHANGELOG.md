@@ -2,6 +2,13 @@
 
 此專案的所有顯著變更將會記錄在此檔案中。
 
+## [3.2.13] - 2026-06-28
+
+### 修正與淨化 (Fixed & Sanitized)
+- **pkg Target 修復與預設表情符號過濾淨化**：
+  - 將 `.github/workflows/release.yml` 中的 `pkg` 打包標的恢復為相容的 `node18` 平台目標，解決建置崩潰問題。
+  - 優化 `scripts/notify-discord.js` 表情過濾邏輯：當缺少特定 ID 格式時，自動過濾無效的裸露字串 `:online~1:` 並優雅替換為視覺精美之 Unicode 標誌 (🟢/🔴)。
+
 ## [3.2.12] - 2026-06-28
 
 ### 新增與保護 (Added & Protected)

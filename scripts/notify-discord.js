@@ -66,17 +66,24 @@ function sendDiscordWebhook(webhookUrl, tag, notes, statusState = 'success') {
   const dateStr = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
   const isSuccess = statusState === 'success';
 
-  // Support Custom Emojis via ENV -> local emojis.json cache -> fallback strings
-  const fallbackOnline = ':online~1:';
-  const fallbackOffline = ':offline~1:';
-  const cachedOnline = getCachedEmoji('online', fallbackOnline);
-  const cachedOffline = getCachedEmoji('offline', fallbackOffline);
+  // Support Custom Emojis via ENV -> local emojis.json cache -> clean fallback Unicode
+  const cachedOnline = getCachedEmoji('online', '');
+  const cachedOffline = getCachedEmoji('offline', '');
 
-  const customOnlineEmoji = process.env.DISCORD_EMOJI_ONLINE || cachedOnline;
-  const customOfflineEmoji = process.env.DISCORD_EMOJI_OFFLINE || cachedOffline;
+  let customOnlineEmoji = process.env.DISCORD_EMOJI_ONLINE || cachedOnline;
+  let customOfflineEmoji = process.env.DISCORD_EMOJI_OFFLINE || cachedOffline;
+
+  // If the resolved emoji is not in valid Discord format (<:name:id> or <a:name:id>), use clean Unicode icons
+  if (!customOnlineEmoji.startsWith('<')) {
+    customOnlineEmoji = '🟢';
+  }
+  if (!customOfflineEmoji.startsWith('<')) {
+    customOfflineEmoji = '🔴';
+  }
+
   const statusEmoji = isSuccess ? customOnlineEmoji : customOfflineEmoji;
 
-  const statusText = isSuccess ? '升級完成，服務正常運作 🟢 🔱' : `建置遭遇異常，排查中... ${customOfflineEmoji} ⚠️`;
+  const statusText = isSuccess ? '升級完成，服務正常運作 🟢 🔱' : `建置遭遇異常，排查中... ${statusEmoji} ⚠️`;
   const reasonText = isSuccess ? `🚀 完成版本升級 (${tag})` : `🔧 自動建置過程異常`;
   const durationText = isSuccess ? '✨ 已完成' : '⏳ 處理中';
 
