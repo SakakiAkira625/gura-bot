@@ -2,6 +2,14 @@
 
 此專案的所有顯著變更將會記錄在此檔案中。
 
+## [3.2.4] - 2026-06-28
+
+### 新增 (Added)
+- **GitHub Actions 跨平台自動化建置與 Discord Webhook 整合**：
+  - 建立 `.github/workflows/release.yml` 完整 CI/CD 工作流程。
+  - 支援 Windows (x64)、Linux (x64) 與 macOS (arm64 Apple Silicon) 跨平台自動化編譯與打包。
+  - 整合 GitHub Secrets (`DISCORD_WEBHOOK_URL`)，發送全新 v3.2.4 的 Gura 主題 Embed 更新公告至 Discord 頻道。
+
 ## [3.2.3] - 2026-06-28
 
 ### 新增 (Added)
