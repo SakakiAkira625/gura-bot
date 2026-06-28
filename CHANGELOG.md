@@ -2,6 +2,13 @@
 
 此專案的所有顯著變更將會記錄在此檔案中。
 
+## [3.2.14] - 2026-06-28
+
+### 新增與功能擴充 (Added)
+- **維修發報獨立腳本 (Notify Maintenance Script)**：
+  - 新增 `scripts/notify-maintenance.js` 並於 `package.json` 加入 `npm run notify-maintenance` 指令。
+  - 支援發送豪華 Ember 格式之 Gawr Gura 系統維修與停機公告至 Discord 頻道。
+
 ## [3.2.13] - 2026-06-28
 
 ### 修正與淨化 (Fixed & Sanitized)

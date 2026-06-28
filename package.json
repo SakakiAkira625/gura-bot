@@ -1,6 +1,6 @@
 {
   "name": "discord-bot",
-  "version": "3.2.13",
+  "version": "3.2.14",
   "main": "src/index.js",
   "bin": "src/index.js",
   "engines": {
@@ -10,7 +10,8 @@
     "start": "node src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "sync-releases": "node scripts/sync-releases.js",
-    "notify-discord": "node scripts/notify-discord.js"
+    "notify-discord": "node scripts/notify-discord.js",
+    "notify-maintenance": "node scripts/notify-maintenance.js"
   },
   "keywords": [],
   "author": "",
