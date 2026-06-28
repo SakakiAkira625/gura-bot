@@ -44,8 +44,9 @@ function getChangelogForVersion(targetTag) {
 }
 
 // Send Discord Webhook Embed
-function sendDiscordWebhook(webhookUrl, tag, notes) {
+function sendDiscordWebhook(webhookUrl, tag, notes, status) {
   const parsedUrl = new URL(webhookUrl);
+  const isSuccess = status !== 'failure';
 
   // Truncate notes if exceeding Discord's embed description limit (4000 chars)
   let description = notes || '尚無詳細變更紀錄。';
@@ -54,17 +55,20 @@ function sendDiscordWebhook(webhookUrl, tag, notes) {
   }
 
   const releaseUrl = `https://github.com/SakakiAkira625/gura-bot/releases/tag/${tag}`;
+  const actionsUrl = `https://github.com/SakakiAkira625/gura-bot/actions`;
 
   const payload = JSON.stringify({
     embeds: [
       {
-        title: `:Gura_wink: Gura Bot 更新啦 [${tag}]`,
-        description: description,
-        color: 0x00A2E8, // Gawr Gura Ocean Blue
+        title: isSuccess ? `:Gura_wink: Gura Bot 更新啦 [${tag}]` : `⚠️ Gura Bot 版本建置失敗通知 [${tag}]`,
+        description: isSuccess ? description : `**建置狀態**：❌ CI/CD 流程在編譯或封裝階段遭遇例外中斷。\n\n**變更內容預覽**：\n${description}`,
+        color: isSuccess ? 0x00A2E8 : 0xFF0000, // Ocean Blue vs Bright Red
         fields: [
           {
             name: '🔗 相關連結',
-            value: `[前往 GitHub Release 查看完整紀錄與附件](${releaseUrl})`,
+            value: isSuccess 
+              ? `[前往 GitHub Release 查看完整紀錄與附件](${releaseUrl})`
+              : `[前往 GitHub Actions 查看失敗原因與 Log](${actionsUrl})`,
             inline: false
           }
         ],
@@ -93,7 +97,7 @@ function sendDiscordWebhook(webhookUrl, tag, notes) {
       res.on('data', (chunk) => { responseBody += chunk; });
       res.on('end', () => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
-          console.log(`[Success] Discord Webhook notification sent for ${tag}.`);
+          console.log(`[Success] Discord Webhook notification sent for ${tag} (status: ${status}).`);
           resolve();
         } else {
           reject(new Error(`HTTP ${res.statusCode}: ${responseBody}`));
@@ -119,15 +123,15 @@ async function main() {
 
   const args = process.argv.slice(2);
   const tag = args[0] || 'v' + require('../package.json').version;
+  const status = args[1] || 'success'; // 'success' or 'failure'
 
-  console.log(`Preparing Discord notification for tag: ${tag}...`);
+  console.log(`Preparing Discord notification for tag: ${tag} (status: ${status})...`);
   const notes = getChangelogForVersion(tag);
 
   try {
-    await sendDiscordWebhook(webhookUrl, tag, notes);
+    await sendDiscordWebhook(webhookUrl, tag, notes, status);
   } catch (error) {
     console.error(`[Error] Failed to send Discord Webhook notification: ${error.message}`);
-    // Non-zero exit is omitted to prevent blocking the entire CI workflow if Webhook fails
   }
 }
 

@@ -2,6 +2,13 @@
 
 此專案的所有顯著變更將會記錄在此檔案中。
 
+## [3.2.9] - 2026-06-28
+
+### 新增與修正 (Added & Fixed)
+- **CI/CD 全天候 Discord Webhook 通知機制 (Always Notify)**：
+  - 更新 `scripts/notify-discord.js` 支援建置失敗 (`failure`) 與建置成功 (`success`) 兩種獨立狀態通知。
+  - 修改 `.github/workflows/release.yml` 設定 `if: always()` 條件，無論 CI 建置成功或失敗，均會強制發送對應狀態與排版美化之通知至 Discord 頻道。
+
 ## [3.2.8] - 2026-06-28
 
 ### 升級與修正 (Upgraded & Fixed)
