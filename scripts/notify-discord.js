@@ -50,13 +50,20 @@ function sendDiscordWebhook(webhookUrl, tag, notes, statusState = 'success') {
   const dateStr = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
   const isSuccess = statusState === 'success';
 
-  const statusEmoji = isSuccess ? ':online~1:' : ':offline~1:';
-  const statusText = isSuccess ? '升級完成，服務正常運作 🟢' : '建置遭遇異常，排查中... :offline~1:';
+  // Support Custom Emojis via ENV or default to fallback strings/Unicodes
+  const customOnlineEmoji = process.env.DISCORD_EMOJI_ONLINE || ':online~1:';
+  const customOfflineEmoji = process.env.DISCORD_EMOJI_OFFLINE || ':offline~1:';
+  const statusEmoji = isSuccess ? customOnlineEmoji : customOfflineEmoji;
+
+  const statusText = isSuccess ? '升級完成，服務正常運作 🟢' : `建置遭遇異常，排查中... ${customOfflineEmoji}`;
   const reasonText = isSuccess ? `完成版本升級 (${tag})` : `自動建置過程異常`;
   const durationText = isSuccess ? '已完成' : '處理中';
 
-  // 1. Plain text header conforming to user's desired format
-  const plainContent = `${dateStr}\n🛠️ 主機更新通知　${statusEmoji}\n影響節點: Gura機器人\n原因: ${reasonText}\n預計時間: ${durationText}\n目前狀態: ${statusText}`;
+  // Mention Role (e.g. @everyone or <@&ROLE_ID>) if provided in environment
+  const mentionPrefix = process.env.DISCORD_MENTION_ROLE ? `${process.env.DISCORD_MENTION_ROLE}\n` : '';
+
+  // 1. Plain text header conforming to user's specified format
+  const plainContent = `${mentionPrefix}${dateStr}\n🛠️ 主機更新通知　${statusEmoji}\n影響節點: Gura機器人\n原因: ${reasonText}\n預計時間: ${durationText}\n目前狀態: ${statusText}`;
 
   // 2. Beautiful Embed
   let description = notes || '尚無詳細變更紀錄。';

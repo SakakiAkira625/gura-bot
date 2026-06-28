@@ -2,6 +2,13 @@
 
 此專案的所有顯著變更將會記錄在此檔案中。
 
+## [3.2.11] - 2026-06-28
+
+### 新增與優化 (Added & Enhanced)
+- **Discord 身分組 Mention 與自訂表情 (Guild Emojis) 支援**：
+  - 更新 `scripts/notify-discord.js` 與 `.github/workflows/release.yml`，支援讀取 `DISCORD_MENTION_ROLE`（如 `@everyone` 或身分組 ID）於發報時 Tag 身分組。
+  - 支援讀取 `DISCORD_EMOJI_ONLINE` 與 `DISCORD_EMOJI_OFFLINE` 自訂表情符號，可直接填入伺服器帶 ID 的完整表情語法（如 `<:online:123456789012345678>`）。
+
 ## [3.2.10] - 2026-06-28
 
 ### 修正與優化 (Fixed & Enhanced)

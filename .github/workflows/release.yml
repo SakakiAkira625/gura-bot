@@ -112,6 +112,9 @@ jobs:
       - name: Send Discord Webhook Notification
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_MENTION_ROLE: ${{ secrets.DISCORD_MENTION_ROLE }}
+          DISCORD_EMOJI_ONLINE: ${{ secrets.DISCORD_EMOJI_ONLINE }}
+          DISCORD_EMOJI_OFFLINE: ${{ secrets.DISCORD_EMOJI_OFFLINE }}
         run: |
           STATUS="success"
           if [ "${{ needs.build.result }}" != "success" ] || [ "${{ needs.release.result }}" != "success" ]; then
