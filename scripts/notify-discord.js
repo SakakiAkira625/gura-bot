@@ -43,32 +43,41 @@ function getChangelogForVersion(targetTag) {
   return currentNotes.join('\n').trim();
 }
 
-// Send Discord Webhook Embed
-function sendDiscordWebhook(webhookUrl, tag, notes, status) {
+// Send Discord Webhook Notice (Text + Embed)
+function sendDiscordWebhook(webhookUrl, tag, notes, statusState = 'success') {
   const parsedUrl = new URL(webhookUrl);
-  const isSuccess = status !== 'failure';
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
+  const isSuccess = statusState === 'success';
 
-  // Truncate notes if exceeding Discord's embed description limit (4000 chars)
+  const statusEmoji = isSuccess ? ':online~1:' : ':offline~1:';
+  const statusText = isSuccess ? '升級完成，服務正常運作 🟢' : '建置遭遇異常，排查中... :offline~1:';
+  const reasonText = isSuccess ? `完成版本升級 (${tag})` : `自動建置過程異常`;
+  const durationText = isSuccess ? '已完成' : '處理中';
+
+  // 1. Plain text header conforming to user's desired format
+  const plainContent = `${dateStr}\n🛠️ 主機更新通知　${statusEmoji}\n影響節點: Gura機器人\n原因: ${reasonText}\n預計時間: ${durationText}\n目前狀態: ${statusText}`;
+
+  // 2. Beautiful Embed
   let description = notes || '尚無詳細變更紀錄。';
   if (description.length > 3900) {
     description = description.substring(0, 3900) + '\n\n*(變更日誌過長，已截斷，請至 GitHub 查看完整內容)*';
   }
 
   const releaseUrl = `https://github.com/SakakiAkira625/gura-bot/releases/tag/${tag}`;
-  const actionsUrl = `https://github.com/SakakiAkira625/gura-bot/actions`;
+  const embedColor = isSuccess ? 0x2ECC71 : 0xE74C3C; // Emerald Green or Crimson Red
 
   const payload = JSON.stringify({
+    content: plainContent,
     embeds: [
       {
-        title: isSuccess ? `:Gura_wink: Gura Bot 更新啦 [${tag}]` : `⚠️ Gura Bot 版本建置失敗通知 [${tag}]`,
-        description: isSuccess ? description : `**建置狀態**：❌ CI/CD 流程在編譯或封裝階段遭遇例外中斷。\n\n**變更內容預覽**：\n${description}`,
-        color: isSuccess ? 0x00A2E8 : 0xFF0000, // Ocean Blue vs Bright Red
+        title: isSuccess ? `:Gura_wink: Gura Bot 更新成功啦 [${tag}]` : `⚠️ Gura Bot 自動建置提醒 [${tag}]`,
+        description: description,
+        color: embedColor,
         fields: [
           {
             name: '🔗 相關連結',
-            value: isSuccess 
-              ? `[前往 GitHub Release 查看完整紀錄與附件](${releaseUrl})`
-              : `[前往 GitHub Actions 查看失敗原因與 Log](${actionsUrl})`,
+            value: `[前往 GitHub Release 查看完整紀錄與附件](${releaseUrl})`,
             inline: false
           }
         ],
@@ -97,7 +106,7 @@ function sendDiscordWebhook(webhookUrl, tag, notes, status) {
       res.on('data', (chunk) => { responseBody += chunk; });
       res.on('end', () => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
-          console.log(`[Success] Discord Webhook notification sent for ${tag} (status: ${status}).`);
+          console.log(`[Success] Discord Webhook notification sent for ${tag} (status: ${statusState}).`);
           resolve();
         } else {
           reject(new Error(`HTTP ${res.statusCode}: ${responseBody}`));
@@ -123,13 +132,13 @@ async function main() {
 
   const args = process.argv.slice(2);
   const tag = args[0] || 'v' + require('../package.json').version;
-  const status = args[1] || 'success'; // 'success' or 'failure'
+  const statusState = args[1] || 'success'; // success, failure, etc.
 
-  console.log(`Preparing Discord notification for tag: ${tag} (status: ${status})...`);
+  console.log(`Preparing Discord notification for tag: ${tag} (Status: ${statusState})...`);
   const notes = getChangelogForVersion(tag);
 
   try {
-    await sendDiscordWebhook(webhookUrl, tag, notes, status);
+    await sendDiscordWebhook(webhookUrl, tag, notes, statusState);
   } catch (error) {
     console.error(`[Error] Failed to send Discord Webhook notification: ${error.message}`);
   }

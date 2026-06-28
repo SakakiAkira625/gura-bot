@@ -4,10 +4,11 @@
 
 ## [3.2.9] - 2026-06-28
 
-### 新增與修正 (Added & Fixed)
-- **CI/CD 全天候 Discord Webhook 通知機制 (Always Notify)**：
-  - 更新 `scripts/notify-discord.js` 支援建置失敗 (`failure`) 與建置成功 (`success`) 兩種獨立狀態通知。
-  - 修改 `.github/workflows/release.yml` 設定 `if: always()` 條件，無論 CI 建置成功或失敗，均會強制發送對應狀態與排版美化之通知至 Discord 頻道。
+### 修正與優化 (Fixed & Enhanced)
+- **pkg 打包進入點修復與無論成敗 Discord 發報機制**：
+  - 在 `package.json` 中加入 `"bin": "src/index.js"`，並將 CI 中的打包指令修正為 `pkg src/index.js`，解決 `pkg` 找不到進入點之建置失敗問題。
+  - 重構 `scripts/notify-discord.js`，完全支援指定格式的主機更新與維修發報，並美化為 Gura 主題 Embed 視覺。
+  - 於 `.github/workflows/release.yml` 獨立 `notify` 任務並注入 `if: always()`，確保不論 CI 建置成功或失敗均會發送最新狀態動態至 Discord 頻道。
 
 ## [3.2.8] - 2026-06-28
 
