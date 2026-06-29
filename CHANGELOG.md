@@ -2,6 +2,14 @@
 
 此專案的所有顯著變更將會記錄在此檔案中。
 
+## [3.2.16] - 2026-06-29
+
+### 新增與功能升級 (Added & Integrated)
+- **Gura AI 對話管道伺服器自訂表情符號整合 (Guild Custom Emoji Integration)**：
+  - 更新 `src/services/emojiManager.js`，新增 `replaceEmojiNames` 與 `getSystemPromptContext` 輔助函式。
+  - 於 `src/events/messageCreate.js` 中動態將伺服器可用自訂表情注入 AI System Prompt，使 Gura 能即時了解並主動發送伺服器專屬表情。
+  - 建立後處理自動替換機制，確保輸出的 `:emoji_name:` 能自動精確轉換為 Discord 特有帶 ID 表情標籤 (`<:name:id>` / `<a:name:id>`)。
+
 ## [3.2.15] - 2026-06-29
 
 ### 最佳實踐與防護 (Best Practices & Stability)

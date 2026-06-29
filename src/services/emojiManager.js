@@ -79,6 +79,26 @@ class EmojiManager {
     }
   }
 
+  // Replace :emoji_name: in text with formatted discord custom emoji tag
+  replaceEmojiNames(text) {
+    if (!text || this.cache.size === 0) return text;
+
+    // Matches :emoji_name: that isn't already inside <:name:id> or <a:name:id>
+    return text.replace(/(?<!<a?):([a-zA-Z0-9_~]+):(?![\d]+>)/g, (match, emojiName) => {
+      if (this.cache.has(emojiName)) {
+        return this.cache.get(emojiName);
+      }
+      return match;
+    });
+  }
+
+  // Generate prompt context string for AI to know available guild emojis
+  getSystemPromptContext() {
+    if (this.cache.size === 0) return '';
+    const emojiNames = Array.from(this.cache.keys()).map(name => `:${name}:`).join(' ');
+    return `\n\n【伺服器專屬表情符號】\n你可以在對話中自然地使用以下伺服器專屬表情符號來表達情緒與互動：\n${emojiNames}\n請在回應中適當加入這些表情符號（寫法如 :online: 或 :Gura_wink: 即可）。`;
+  }
+
   // Get formatted emoji string by name, or return fallback
   getEmoji(name, fallback = '') {
     if (this.cache.has(name)) {

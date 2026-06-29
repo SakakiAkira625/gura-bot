@@ -7,6 +7,7 @@ const { classifyIntent, extractWikiKeyword } = require('../services/intentEngine
 const { fetchWikiSummary } = require('../services/wikiService');
 const { retrieveRelevantMemories, summarizeAndStoreMemory } = require('../services/memoryManager');
 const { downloadTextFile } = require('../utils/fileHelper');
+const emojiManager = require('../services/emojiManager');
 const logger = require('../utils/logger');
 const { getMessage } = require('../utils/i18n');
 
@@ -206,6 +207,8 @@ module.exports = {
       if (relevantMemories.length > 0) {
         systemPrompt.content += `\n\n【海馬迴記憶喚醒】\n（重要指示：雖然你的角色設定是記憶力像金魚，但當這裡提供資訊時，你**必須**準確回答出來！你可以表現出「其實我偷偷記住了」或「突然靈光一閃想起來」的得意感，**絕對不可以**裝傻說不知道或忘記！）\n根據過去的紀錄，請記得關於使用者的這些事：\n${relevantMemories.map(m => '- ' + m).join('\n')}`;
       }
+      // 注入伺服器自訂表情符號 context
+      systemPrompt.content += emojiManager.getSystemPromptContext();
 
       try {
         await message.channel.sendTyping();
@@ -328,6 +331,8 @@ module.exports = {
 
       // 清理 reply 開頭可能被 AI 模仿生出的時間戳或角色標籤
       reply = cleanReplyPrefix(reply);
+      // 自動將 reply 中的 :emoji_name: 替換為帶有 ID 的伺服器自訂表情符號
+      reply = emojiManager.replaceEmojiNames(reply);
       
       // 儲存 Gura 的回覆 (機器人本身的 user_id)，注意不要把耗時字串存進資料庫，否則模型會學習並自己產生
       await historyRepository.add(message.client.user.id, channelId, 'assistant', reply, Date.now());
