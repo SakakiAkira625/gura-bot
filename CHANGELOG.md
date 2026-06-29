@@ -2,6 +2,13 @@
 
 此專案的所有顯著變更將會記錄在此檔案中。
 
+## [3.2.15] - 2026-06-29
+
+### 最佳實踐與防護 (Best Practices & Stability)
+- **PM2 Production Watch 關閉與穩定性優化**：
+  - 於 `ecosystem.config.js` 將 `watch` 正式設定為 `false`。
+  - 避免線上正式環境（Production）因檔案讀寫或 Git 操作引發無預期重啟，改由 CI/CD 與部署指令精準控制。
+
 ## [3.2.14] - 2026-06-28
 
 ### 新增與功能擴充 (Added)
